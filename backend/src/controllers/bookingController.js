@@ -60,11 +60,14 @@ export const createBooking = catchAsync(async (req, res, next) => {
 });
 
 export const getMyBookings = catchAsync(async (req, res, next) => {
-  const { page = 1, limit = 10, status } = req.query;
+  const { page = 1, limit = 10, status, packageId } = req.query;
   const query = { user: req.user._id };
 
   if (status) {
     query.status = status;
+  }
+  if (packageId) {
+    query.package = packageId;
   }
 
   const total = await Booking.countDocuments(query);

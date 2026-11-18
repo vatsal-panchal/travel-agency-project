@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router';
 import {
   AlertCircle,
   CalendarCheck,
+  Clock,
   CreditCard,
   Edit,
+  Eye,
   LayoutDashboard,
   MessageSquare,
   Package,
@@ -16,6 +18,7 @@ import {
   Trash2,
   TrendingUp,
   Users,
+  XCircle,
 } from 'lucide-react';
 import { adminApi } from '../api/adminApi';
 import { packageApi } from '../api/packageApi';
@@ -55,6 +58,7 @@ const statusStyles = {
   success: 'border-moss/20 bg-moss/10 text-moss',
   failed: 'border-rose-200 bg-rose-50 text-rose-700',
   refunded: 'border-ink/15 bg-ink/[0.06] text-ink-600',
+  unpaid: 'border-ink/15 bg-ink/[0.05] text-ink-500',
 };
 
 const StatusBadge = ({ status }) => (
@@ -113,6 +117,13 @@ export const AdminDashboardPage = () => {
   const [userPagination, setUserPagination] = useState({ page: 1, total: 0, totalPages: 1 });
   const [userActionId, setUserActionId] = useState(null);
   const [adminBookings, setAdminBookings] = useState([]);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [bookingSearchInput, setBookingSearchInput] = useState('');
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('all');
+  const [bookingPage, setBookingPage] = useState(1);
+  const [bookingPagination, setBookingPagination] = useState({ page: 1, total: 0, totalPages: 1 });
   const [adminPayments, setAdminPayments] = useState([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('all');
@@ -121,6 +132,7 @@ export const AdminDashboardPage = () => {
   const [packagesList, setPackagesList] = useState([]);
   const [enquiriesList, setEnquiriesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   const [packageModalOpen, setPackageModalOpen] = useState(false);
@@ -172,6 +184,28 @@ export const AdminDashboardPage = () => {
     }
   }, [paymentPage, paymentStatus]);
 
+  const loadBookings = useCallback(async () => {
+    try {
+      setBookingsLoading(true);
+      const response = await adminApi.getBookings({
+        page: bookingPage,
+        limit: 10,
+        ...(bookingStatusFilter !== 'all' ? { status: bookingStatusFilter } : {}),
+        ...(bookingSearch ? { search: bookingSearch } : {}),
+      });
+      setAdminBookings(response.data?.bookings || []);
+      setBookingPagination({
+        page: response.data?.page || 1,
+        total: response.data?.total || 0,
+        totalPages: response.data?.totalPages || 1,
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Booking activity could not be loaded.');
+    } finally {
+      setBookingsLoading(false);
+    }
+  }, [bookingPage, bookingSearch, bookingStatusFilter]);
+
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
       navigate('/dashboard');
@@ -182,15 +216,13 @@ export const AdminDashboardPage = () => {
     try {
       setLoading(true);
       setError('');
-      const [statsRes, bookingsRes, pkgsRes, enquiriesRes] = await Promise.all([
+      const [statsRes, pkgsRes, enquiriesRes] = await Promise.all([
         adminApi.getStats(),
-        adminApi.getBookings(),
         packageApi.getAll({ limit: 50 }),
         enquiryApi.getAdminEnquiries(),
       ]);
 
       setStats(statsRes.data || null);
-      setAdminBookings(bookingsRes.data?.bookings || []);
       setPackagesList(pkgsRes.data?.packages || []);
       setEnquiriesList(enquiriesRes.data?.enquiries || []);
     } catch (err) {
@@ -218,6 +250,21 @@ export const AdminDashboardPage = () => {
       loadPayments();
     }
   }, [isAdmin, loadPayments]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadBookings();
+    }
+  }, [isAdmin, loadBookings]);
+
+  const refreshAdminData = async () => {
+    try {
+      setRefreshing(true);
+      await Promise.all([loadAllAdminData(), loadUsers(), loadPayments(), loadBookings()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleToggleBlock = async (userId) => {
     try {
@@ -357,12 +404,12 @@ export const AdminDashboardPage = () => {
     () => [
       { id: 'overview', label: 'Overview', icon: TrendingUp },
       { id: 'packages', label: 'Journeys', icon: Package, count: packagesList.length },
-      { id: 'bookings', label: 'Bookings', icon: CalendarCheck, count: adminBookings.length },
+      { id: 'bookings', label: 'Bookings', icon: CalendarCheck, count: bookingPagination.total },
       { id: 'payments', label: 'Payments', icon: CreditCard, count: paymentPagination.total },
       { id: 'users', label: 'Users', icon: Users, count: userPagination.total },
       { id: 'enquiries', label: 'Enquiries', icon: MessageSquare, count: enquiriesList.length },
     ],
-    [packagesList.length, adminBookings.length, paymentPagination.total, userPagination.total, enquiriesList.length]
+    [packagesList.length, bookingPagination.total, paymentPagination.total, userPagination.total, enquiriesList.length]
   );
 
   if (!isAuthenticated || !isAdmin) {
@@ -392,6 +439,15 @@ export const AdminDashboardPage = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={refreshAdminData}
+                disabled={refreshing}
+                className="btn-outline btn-sm"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing…' : 'Refresh data'}
+              </button>
               <button type="button" onClick={openCreateModal} className="btn-ink btn-sm">
                 <Plus className="h-3.5 w-3.5" /> New journey
               </button>
@@ -535,16 +591,16 @@ export const AdminDashboardPage = () => {
                       icon: Users,
                     },
                     {
-                      label: 'Active accounts',
-                      value: stats?.activeUsers ?? 0,
-                      note: 'Access enabled',
-                      icon: ShieldCheck,
+                      label: 'Pending bookings',
+                      value: stats?.bookingsByStatus?.pending ?? 0,
+                      note: 'Awaiting payment or confirmation',
+                      icon: Clock,
                     },
                     {
-                      label: 'Suspended accounts',
-                      value: stats?.suspendedUsers ?? 0,
-                      note: 'Access paused',
-                      icon: ShieldAlert,
+                      label: 'Cancelled bookings',
+                      value: stats?.bookingsByStatus?.cancelled ?? 0,
+                      note: 'Kept for operational history',
+                      icon: XCircle,
                     },
                   ].map((item, index) => {
                     const Icon = item.icon;
@@ -606,7 +662,7 @@ export const AdminDashboardPage = () => {
                                   {month.month}
                                 </span>
                                 <span className="mt-0.5 text-[9px] font-semibold text-ink-300">
-                                  {month.bookingsCount}
+                                  {month.transactionsCount} paid
                                 </span>
                               </div>
                             );
@@ -634,14 +690,14 @@ export const AdminDashboardPage = () => {
                         </button>
                       </div>
                       <div className="mt-4 divide-y divide-ink/[0.07]">
-                        {adminBookings.slice(0, 5).map((booking) => (
+                        {(stats?.recentBookings || []).slice(0, 5).map((booking) => (
                           <div key={booking._id} className="flex items-center justify-between gap-3 py-3">
                             <div className="min-w-0">
                               <p className="truncate text-[12px] font-extrabold text-ink">
                                 {booking.user?.name || 'Traveller'}
                               </p>
                               <p className="truncate text-[10px] text-ink-400">
-                                {booking.package?.title || 'Journey'}
+                                {booking.package?.title || 'Journey'} · {booking.status}
                               </p>
                             </div>
                             <div className="shrink-0 text-right">
@@ -654,7 +710,7 @@ export const AdminDashboardPage = () => {
                             </div>
                           </div>
                         ))}
-                        {adminBookings.length === 0 && (
+                        {(stats?.recentBookings || []).length === 0 && (
                           <p className="py-8 text-center text-[12px] text-ink-400">
                             No bookings yet.
                           </p>
@@ -812,20 +868,80 @@ export const AdminDashboardPage = () => {
             {/* Bookings */}
             {activeTab === 'bookings' && (
               <div className="mt-6 overflow-hidden rounded-3xl border border-ink/10 bg-cream-50 shadow-soft">
+                <div className="flex flex-col gap-4 border-b border-ink/[0.07] p-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+                  <div>
+                    <p className="eyebrow">Reservation operations</p>
+                    <h2 className="mt-1 font-display text-2xl text-ink">All bookings</h2>
+                    <p className="mt-1 text-[11px] text-ink-400">
+                      {bookingPagination.total} booking records · payment state shown separately
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        setBookingPage(1);
+                        setBookingSearch(bookingSearchInput.trim());
+                      }}
+                      className="relative"
+                    >
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                      <input
+                        type="search"
+                        aria-label="Search bookings by traveller or journey"
+                        value={bookingSearchInput}
+                        onChange={(event) => setBookingSearchInput(event.target.value)}
+                        placeholder="Name, email, journey or booking ID"
+                        className="h-10 w-full rounded-xl border border-ink/10 bg-cream-50 pl-9 pr-3 text-[11px] font-semibold text-ink outline-none transition placeholder:text-ink-300 focus:border-clay-400 focus:ring-2 focus:ring-clay-500/10 sm:w-56"
+                      />
+                    </form>
+                    <label className="sr-only" htmlFor="booking-status-filter">
+                      Filter by booking status
+                    </label>
+                    <select
+                      id="booking-status-filter"
+                      value={bookingStatusFilter}
+                      onChange={(event) => {
+                        setBookingPage(1);
+                        setBookingStatusFilter(event.target.value);
+                      }}
+                      className="h-10 rounded-xl border border-ink/10 bg-cream-50 px-3 text-[11px] font-bold text-ink outline-none focus:border-clay-400 focus:ring-2 focus:ring-clay-500/10"
+                    >
+                      <option value="all">All bookings</option>
+                      <option value="pending">Awaiting payment</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] border-collapse">
+                  <table className="w-full min-w-[1040px] border-collapse">
                     <thead className="border-b border-ink/10 bg-cream-100">
                       <tr>
                         <Th>Traveller</Th>
                         <Th>Journey</Th>
                         <Th>Party</Th>
                         <Th>Amount</Th>
-                        <Th>Status</Th>
+                        <Th>Booking</Th>
+                        <Th>Payment</Th>
                         <Th>Booked</Th>
+                        <Th className="text-right">Details</Th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-ink/[0.07]">
-                      {adminBookings.map((booking) => (
+                      {bookingsLoading ? (
+                        <tr>
+                          <td colSpan="8" className="px-5 py-12 text-center text-[12px] text-ink-400">
+                            Loading booking activity…
+                          </td>
+                        </tr>
+                      ) : adminBookings.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" className="px-5 py-12 text-center text-[12px] text-ink-400">
+                            No bookings match these filters.
+                          </td>
+                        </tr>
+                      ) : adminBookings.map((booking) => (
                         <tr key={booking._id} className="transition hover:bg-cream-100/60">
                           <Td>
                             <p className="font-extrabold text-ink">{booking.user?.name || 'User'}</p>
@@ -843,13 +959,63 @@ export const AdminDashboardPage = () => {
                           <Td>
                             <StatusBadge status={booking.status} />
                           </Td>
+                          <Td>
+                            <StatusBadge status={booking.paymentStatus || 'unpaid'} />
+                          </Td>
                           <Td className="text-[11px] text-ink-400">
                             {formatDate(booking.createdAt)}
+                          </Td>
+                          <Td className="text-right">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedBooking(booking)}
+                              aria-label={`View booking ${booking._id}`}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 px-3 py-1.5 text-[10px] font-extrabold text-ink-600 transition hover:border-forest/20 hover:bg-forest/5 hover:text-forest"
+                            >
+                              <Eye className="h-3.5 w-3.5" /> View
+                            </button>
                           </Td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="flex flex-col gap-3 border-t border-ink/[0.07] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <p className="text-[10px] font-semibold text-ink-400">
+                    {bookingPagination.total === 0
+                      ? 'Showing 0 bookings'
+                      : `Showing ${(bookingPagination.page - 1) * 10 + 1}–${Math.min(
+                          bookingPagination.page * 10,
+                          bookingPagination.total
+                        )} of ${bookingPagination.total} bookings`}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={bookingPagination.page <= 1 || bookingsLoading}
+                      onClick={() => setBookingPage((page) => Math.max(1, page - 1))}
+                      className="rounded-full border border-ink/10 px-3 py-2 text-[10px] font-extrabold text-ink-600 transition hover:bg-cream-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="min-w-16 text-center text-[10px] font-bold text-ink-500">
+                      Page {bookingPagination.page} of {bookingPagination.totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={
+                        bookingPagination.page >= bookingPagination.totalPages || bookingsLoading
+                      }
+                      onClick={() =>
+                        setBookingPage((page) =>
+                          Math.min(bookingPagination.totalPages, page + 1)
+                        )
+                      }
+                      className="rounded-full border border-ink/10 px-3 py-2 text-[10px] font-extrabold text-ink-600 transition hover:bg-cream-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1446,6 +1612,124 @@ export const AdminDashboardPage = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(selectedBooking)}
+        onClose={() => setSelectedBooking(null)}
+        title="Booking details"
+        subtitle="Traveller and payment information for operations."
+        maxWidth="max-w-2xl"
+      >
+        {selectedBooking && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge status={selectedBooking.status} />
+              <StatusBadge status={selectedBooking.paymentStatus || 'unpaid'} />
+              <span className="text-[10px] font-semibold text-ink-400">
+                Booking #{selectedBooking._id.slice(-8)}
+              </span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-ink/10 bg-cream-100/70 p-4">
+                <p className="text-[9px] font-extrabold uppercase tracking-[0.13em] text-ink-400">
+                  Lead traveller
+                </p>
+                <p className="mt-2 text-[13px] font-extrabold text-ink">
+                  {selectedBooking.user?.name || 'Unknown traveller'}
+                </p>
+                <p className="mt-1 break-all text-[11px] text-ink-500">
+                  {selectedBooking.user?.email || 'No email available'}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-ink/10 bg-cream-100/70 p-4">
+                <p className="text-[9px] font-extrabold uppercase tracking-[0.13em] text-ink-400">
+                  Journey
+                </p>
+                <p className="mt-2 text-[13px] font-extrabold text-ink">
+                  {selectedBooking.package?.title || 'Journey no longer available'}
+                </p>
+                <p className="mt-1 text-[11px] text-ink-500">
+                  {selectedBooking.package?.destination || '—'} · Departing{' '}
+                  {formatDate(selectedBooking.package?.startDate)}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-ink/10 bg-cream-100/70 p-4">
+                <p className="text-[9px] font-extrabold uppercase tracking-[0.13em] text-ink-400">
+                  Booking total
+                </p>
+                <p className="mt-2 font-display text-2xl text-ink">
+                  {formatCurrency(selectedBooking.totalAmount)}
+                </p>
+                <p className="mt-1 text-[11px] text-ink-500">
+                  {selectedBooking.travelers} traveller
+                  {selectedBooking.travelers === 1 ? '' : 's'} · Booked{' '}
+                  {formatDate(selectedBooking.createdAt)}
+                </p>
+              </div>
+              {selectedBooking.status === 'pending' && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.13em] text-amber-700">
+                    Seat hold expires
+                  </p>
+                  <p className="mt-2 text-[13px] font-extrabold text-amber-800">
+                    {formatDate(selectedBooking.expiresAt)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-amber-700">
+                    Payment must complete before the hold expires.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-ink-500">
+                  Traveller list
+                </h3>
+                <span className="text-[10px] font-semibold text-ink-400">
+                  {selectedBooking.travelersInfo?.length || 0} names
+                </span>
+              </div>
+              <div className="divide-y divide-ink/[0.07] rounded-2xl border border-ink/10">
+                {(selectedBooking.travelersInfo || []).map((traveller, index) => (
+                  <div
+                    key={`${traveller.name}-${index}`}
+                    className="flex items-center justify-between gap-3 px-4 py-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-forest/10 text-[10px] font-extrabold text-forest">
+                        {index + 1}
+                      </span>
+                      <span className="truncate text-[12px] font-bold text-ink">
+                        {traveller.name}
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-[10px] capitalize text-ink-400">
+                      {traveller.age} yrs · {traveller.gender || 'not specified'}
+                    </span>
+                  </div>
+                ))}
+                {(!selectedBooking.travelersInfo || selectedBooking.travelersInfo.length === 0) && (
+                  <p className="px-4 py-5 text-center text-[11px] text-ink-400">
+                    No traveller details were provided.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-ink/10 pt-4">
+              <button
+                type="button"
+                onClick={() => setSelectedBooking(null)}
+                className="btn-outline btn-sm"
+              >
+                Close details
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

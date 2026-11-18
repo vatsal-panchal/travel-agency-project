@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { packageApi } from '../api/packageApi';
+import { bookingApi } from '../api/bookingApi';
 import { reviewApi } from '../api/reviewApi';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
@@ -67,6 +68,10 @@ export const PackageDetailsPage = () => {
 
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState(null);
+  const [existingBooking, setExistingBooking] = useState(null);
+  const [bookingLookupLoading, setBookingLookupLoading] = useState(false);
+  const [bookingLookupError, setBookingLookupError] = useState('');
+  const [bookingLookupAttempt, setBookingLookupAttempt] = useState(0);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 
   const [newReviewRating, setNewReviewRating] = useState(5);
@@ -109,6 +114,47 @@ export const PackageDetailsPage = () => {
     };
   }, [id]);
 
+  useEffect(() => {
+    let alive = true;
+
+    if (!isAuthenticated) {
+      setExistingBooking(null);
+      setBookingLookupError('');
+      setBookingLookupLoading(false);
+      return () => {
+        alive = false;
+      };
+    }
+
+    const loadExistingBooking = async () => {
+      try {
+        setBookingLookupLoading(true);
+        setBookingLookupError('');
+        const res = await bookingApi.getMyBookings({ packageId: id });
+        const matches = res.data?.bookings || [];
+        const booking =
+          matches.find((item) => item.status === 'confirmed') ||
+          matches.find((item) => item.status === 'pending') ||
+          null;
+        if (alive) setExistingBooking(booking);
+      } catch (err) {
+        if (alive) {
+          setExistingBooking(null);
+          setBookingLookupError(
+            err.response?.data?.message || 'We could not check your existing booking.'
+          );
+        }
+      } finally {
+        if (alive) setBookingLookupLoading(false);
+      }
+    };
+
+    loadExistingBooking();
+    return () => {
+      alive = false;
+    };
+  }, [id, isAuthenticated, bookingLookupAttempt]);
+
   const images = useMemo(() => {
     if (pkg?.images?.length) return pkg.images;
     return FALLBACK_IMAGES;
@@ -137,10 +183,12 @@ export const PackageDetailsPage = () => {
   const handleBookingCreated = (newBooking) => {
     setBookingModalOpen(false);
     setActiveBooking(newBooking);
+    setExistingBooking(newBooking);
     setPaymentModalOpen(true);
   };
 
   const handlePaymentSuccess = () => {
+    setExistingBooking((booking) => (booking ? { ...booking, status: 'confirmed' } : booking));
     loadPackage();
   };
 
@@ -774,16 +822,74 @@ export const PackageDetailsPage = () => {
               </div>
 
               <div className="p-6">
-                <button
-                  onClick={() => setBookingModalOpen(true)}
-                  disabled={seats === 0}
-                  className="btn-clay w-full py-4 text-[13px]"
-                >
-                  {seats === 0 ? 'Sold out' : 'Reserve your seats'}
-                </button>
-                <p className="mt-3 text-center text-[10.5px] font-semibold leading-relaxed text-ink-400">
-                  No charge until checkout. Seats are held for 15 minutes while you pay.
-                </p>
+                {existingBooking?.status === 'confirmed' ? (
+                  <div className="rounded-2xl border border-moss/20 bg-moss/10 p-4">
+                    <p className="flex items-center gap-2 text-[12px] font-extrabold text-moss">
+                      <CheckCircle2 className="h-4 w-4" /> Booking confirmed
+                    </p>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-ink-500">
+                      Your payment is complete and your seats are secured.
+                    </p>
+                    <Link
+                      to="/dashboard?tab=bookings"
+                      className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-extrabold text-ink transition hover:text-clay-600"
+                    >
+                      View your booking <Check className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                ) : existingBooking?.status === 'pending' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveBooking(existingBooking);
+                        setPaymentModalOpen(true);
+                      }}
+                      className="btn-clay w-full py-4 text-[13px]"
+                    >
+                      Complete payment
+                    </button>
+                    <p className="mt-3 text-center text-[10.5px] font-semibold leading-relaxed text-ink-400">
+                      You already have a seat hold for this journey. Complete payment to confirm it.
+                    </p>
+                  </>
+                ) : bookingLookupLoading ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="btn-clay w-full cursor-wait py-4 text-[13px] opacity-70"
+                  >
+                    Checking your booking…
+                  </button>
+                ) : bookingLookupError ? (
+                  <div
+                    role="alert"
+                    className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center"
+                  >
+                    <p className="text-[11px] font-semibold text-rose-700">{bookingLookupError}</p>
+                    <button
+                      type="button"
+                      onClick={() => setBookingLookupAttempt((attempt) => attempt + 1)}
+                      className="mt-2 text-[11px] font-extrabold text-rose-700 underline underline-offset-2"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setBookingModalOpen(true)}
+                      disabled={seats === 0}
+                      className="btn-clay w-full py-4 text-[13px]"
+                    >
+                      {seats === 0 ? 'Sold out' : 'Reserve your seats'}
+                    </button>
+                    <p className="mt-3 text-center text-[10.5px] font-semibold leading-relaxed text-ink-400">
+                      No charge until checkout. Seats are held for 15 minutes while you pay.
+                    </p>
+                  </>
+                )}
 
                 <div className="mt-5 space-y-2.5 border-t border-ink/10 pt-4">
                   {[

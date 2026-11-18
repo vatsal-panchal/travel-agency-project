@@ -379,6 +379,80 @@ describe('2. Authentication & Authorization Flow', () => {
     ]);
     expect(activeUsersRes.body.data.total).toBe(2);
   });
+
+  test('Admin booking operations search travellers and show latest payment state', async () => {
+    const admin = await User.create({
+      name: 'Operations Admin',
+      email: 'operations@test.com',
+      password: 'Password123',
+      role: 'admin',
+    });
+    const traveller = await User.create({
+      name: 'Avery Traveller',
+      email: 'avery@example.com',
+      password: 'Password123',
+    });
+    const pkg = await Package.create({
+      title: 'Coastal Escape',
+      slug: 'coastal-escape-admin-test',
+      destination: 'Goa',
+      description: 'A coastal break.',
+      price: 25000,
+      durationDays: 4,
+      startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      totalSeats: 10,
+      availableSeats: 8,
+      category: 'beach',
+    });
+    const confirmedBooking = await Booking.create({
+      user: traveller._id,
+      package: pkg._id,
+      travelers: 1,
+      travelersInfo: [{ name: 'Avery Traveller', age: 30 }],
+      totalAmount: 25000,
+      status: 'confirmed',
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    });
+    const unpaidBooking = await Booking.create({
+      user: traveller._id,
+      package: pkg._id,
+      travelers: 1,
+      travelersInfo: [{ name: 'Avery Traveller', age: 30 }],
+      totalAmount: 25000,
+      status: 'pending',
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    });
+    await Payment.create({
+      user: traveller._id,
+      booking: confirmedBooking._id,
+      amount: 25000,
+      status: 'success',
+      transactionId: 'TXN-ADMIN-BOOKING-TEST',
+    });
+    const adminToken = jwt.sign(
+      { sub: admin._id.toString(), role: 'admin' },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '15m', algorithm: 'HS256' }
+    );
+
+    const res = await request(app)
+      .get('/api/admin/bookings?search=avery%40example.com&limit=1')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.total).toBe(2);
+    expect(res.body.data.bookings).toHaveLength(1);
+    expect(res.body.data.bookings[0].paymentStatus).toBe('unpaid');
+    expect(res.body.data.totalPages).toBe(2);
+
+    const paidRes = await request(app)
+      .get(`/api/admin/bookings?search=Coastal&status=confirmed`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(paidRes.status).toBe(200);
+    expect(paidRes.body.data.bookings[0].paymentStatus).toBe('success');
+    expect(paidRes.body.data.bookings[0]._id).toBe(confirmedBooking._id.toString());
+    expect(paidRes.body.data.bookings.some((booking) => booking._id === unpaidBooking._id.toString())).toBe(false);
+  });
 });
 
 describe('3. Travel Packages and Pagination', () => {
@@ -547,6 +621,42 @@ describe('4. Bookings, Concurrency, and Seat Allocation', () => {
       });
     expect(res.status).toBe(400);
     expect(res.body.errors).toBeDefined();
+  });
+
+  test('booking history can be filtered to one package', async () => {
+    const otherPkg = await Package.create({
+      title: 'Mountain Lake Escape',
+      slug: 'mountain-lake-escape',
+      destination: 'Switzerland',
+      description: 'A quiet stay beside an alpine lake.',
+      price: 1200,
+      durationDays: 3,
+      startDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000),
+      totalSeats: 2,
+      availableSeats: 2,
+      category: 'mountain',
+    });
+
+    const createBooking = (packageId) =>
+      request(app)
+        .post('/api/bookings')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          packageId: packageId.toString(),
+          travelers: 1,
+          travelersInfo: [{ name: 'Solo Traveler', age: 30, gender: 'other' }],
+        });
+
+    await createBooking(pkg._id);
+    await createBooking(otherPkg._id);
+
+    const res = await request(app)
+      .get(`/api/bookings/my?packageId=${pkg._id}`)
+      .set('Authorization', `Bearer ${userToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.bookings).toHaveLength(1);
+    expect(res.body.data.bookings[0].package._id).toBe(pkg._id.toString());
   });
 
   test('Cancel booking restores seats once', async () => {

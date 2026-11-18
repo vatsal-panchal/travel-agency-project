@@ -24,4 +24,7 @@ export const queryBookingSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(10),
   status: z.enum(['pending', 'confirmed', 'cancelled']).optional(),
+  packageId: z.string().refine((val) => mongoose.Types.ObjectId.isValid(val), {
+    message: 'Invalid package ID format',
+  }).optional(),
 });

@@ -50,6 +50,7 @@ export const getAdminStats = catchAsync(async (req, res, next) => {
           month: { $month: '$createdAt' },
         },
         revenue: { $sum: '$amount' },
+        transactionsCount: { $sum: 1 },
       },
     },
   ]);
@@ -57,16 +58,21 @@ export const getAdminStats = catchAsync(async (req, res, next) => {
   const monthlyMap = new Map();
   monthlyAgg.forEach((item) => {
     const key = `${item._id.year}-${String(item._id.month).padStart(2, '0')}`;
-    monthlyMap.set(key, item.revenue);
+    monthlyMap.set(key, {
+      revenue: item.revenue,
+      transactionsCount: item.transactionsCount,
+    });
   });
 
   const monthlyRevenue = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const monthData = monthlyMap.get(key);
     monthlyRevenue.push({
       month: key,
-      revenue: monthlyMap.get(key) || 0,
+      revenue: monthData?.revenue || 0,
+      transactionsCount: monthData?.transactionsCount || 0,
     });
   }
 
@@ -198,11 +204,32 @@ export const toggleBlockUser = catchAsync(async (req, res, next) => {
 });
 
 export const getAdminBookings = catchAsync(async (req, res, next) => {
-  const { page = 1, limit = 10, status } = req.query;
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, Number.parseInt(req.query.limit, 10) || 10));
+  const status = ['pending', 'confirmed', 'cancelled'].includes(req.query.status)
+    ? req.query.status
+    : undefined;
+  const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
   const query = {};
 
   if (status) {
     query.status = status;
+  }
+
+  if (search) {
+    const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const [userIds, packageIds] = await Promise.all([
+      User.find({ $or: [{ name: searchRegex }, { email: searchRegex }] }).distinct('_id'),
+      Package.find({ $or: [{ title: searchRegex }, { destination: searchRegex }] }).distinct('_id'),
+    ]);
+    const matchingRecords = [
+      { user: { $in: userIds } },
+      { package: { $in: packageIds } },
+    ];
+    if (mongoose.Types.ObjectId.isValid(search)) {
+      matchingRecords.push({ _id: search });
+    }
+    query.$or = matchingRecords;
   }
 
   const total = await Booking.countDocuments(query);
@@ -219,13 +246,31 @@ export const getAdminBookings = catchAsync(async (req, res, next) => {
       .limit(limit);
   }
 
+  const paymentRecords = bookings.length
+    ? await Payment.find({ booking: { $in: bookings.map((booking) => booking._id) } })
+        .select('booking status')
+        .sort({ createdAt: -1 })
+        .lean()
+    : [];
+  const latestPaymentByBooking = new Map();
+  paymentRecords.forEach((payment) => {
+    const bookingId = payment.booking.toString();
+    if (!latestPaymentByBooking.has(bookingId)) {
+      latestPaymentByBooking.set(bookingId, payment.status);
+    }
+  });
+  const bookingsWithPaymentStatus = bookings.map((booking) => ({
+    ...booking.toObject(),
+    paymentStatus: latestPaymentByBooking.get(booking._id.toString()) || 'unpaid',
+  }));
+
   res.status(200).json({
     success: true,
     message: 'Admin bookings retrieved successfully',
     data: {
-      bookings,
-      page: Number(page),
-      limit: Number(limit),
+      bookings: bookingsWithPaymentStatus,
+      page,
+      limit,
       total,
       totalPages,
       hasNext: page < totalPages,
