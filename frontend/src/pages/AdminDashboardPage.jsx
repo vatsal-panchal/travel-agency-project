@@ -508,7 +508,7 @@ export const AdminDashboardPage = () => {
             {/* Overview */}
             {activeTab === 'overview' && (
               <div className="mt-6 space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                   {[
                     {
                       label: 'Confirmed revenue',
@@ -550,14 +550,14 @@ export const AdminDashboardPage = () => {
                     const Icon = item.icon;
                     return (
                       <Reveal key={item.label} delay={index * 60}>
-                        <div className="card-surface h-full p-5">
+                        <div className="card-surface h-full min-w-0 p-4 sm:p-5">
                           <div className="flex items-start justify-between gap-3">
                             <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-ink-400">
                               {item.label}
                             </p>
                             <Icon className="h-4 w-4 text-clay-500" strokeWidth={1.7} />
                           </div>
-                          <p className="mt-3 font-display text-[2rem] leading-none text-ink">
+                          <p className="mt-3 whitespace-nowrap font-display text-[clamp(1.25rem,1.8vw,1.75rem)] leading-none text-ink">
                             {item.value}
                           </p>
                           <p className="mt-1.5 text-[10px] font-semibold text-ink-400">

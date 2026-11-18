@@ -344,43 +344,39 @@ export const DashboardPage = () => {
 
   return (
     <div className="overflow-x-clip">
-      {/* Account header */}
-      <section className="bg-forest-deep text-cream-100">
-        <div className="container-x py-10 sm:py-14">
-          <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
-            <div className="flex items-start gap-4">
-              <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-cream-100/10 font-display text-3xl text-cream-50 ring-1 ring-cream-100/15">
+      <section className="border-b border-ink/10 bg-gradient-to-br from-cream-100 via-cream-50 to-white">
+        <div className="container-x py-7 sm:py-9">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-forest text-xl font-bold text-white ring-4 ring-white shadow-soft sm:h-16 sm:w-16">
                 {profilePhoto ? (
                   <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
                 ) : (
                   user?.name?.charAt(0)?.toUpperCase() || 'T'
                 )}
               </span>
-              <div>
-                <span className="text-[9px] font-extrabold uppercase tracking-[0.22em] text-clay-300">
-                  {user?.role === 'admin' ? 'Staff account' : 'Member account'}
-                </span>
-                <h1 className="mt-1.5 font-display text-4xl leading-tight text-cream-50 sm:text-5xl">
-                  Hello, {firstName}.
-                </h1>
-                <p className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-cream-200/55">
-                  <span>{user?.email}</span>
-                  <span className="text-cream-200/20">·</span>
-                  <span className="inline-flex items-center gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5 text-clay-300" /> Secure account
-                  </span>
+              <div className="min-w-0">
+                <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-clay-700">
+                  {user?.role === 'admin' ? 'Staff account' : 'Your travel account'}
                 </p>
+                <h1 className="mt-1 font-display text-3xl leading-tight text-ink sm:text-4xl">
+                  Welcome back, {firstName}
+                </h1>
+                <p className="mt-1 truncate text-[12px] text-ink-500">{user?.email}</p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Link to="/packages" className="btn-light btn-sm">
-                Find a journey <ArrowRight className="h-3.5 w-3.5" />
+            <div className="flex flex-wrap items-center gap-2 sm:pl-[4.5rem] lg:pl-0">
+              <Link to="/dashboard?tab=settings" className="btn-outline btn-sm">
+                <UserRound className="h-3.5 w-3.5" /> My profile
+              </Link>
+              <Link to="/packages" className="btn-ink btn-sm">
+                Explore journeys <ArrowRight className="h-3.5 w-3.5" />
               </Link>
               {user?.role === 'admin' && (
                 <Link
                   to="/admin"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-cream-100/20 px-4 py-2 text-[11px] font-extrabold text-cream-100 transition hover:bg-cream-100/10"
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-extrabold text-ink-600 transition hover:bg-ink/[0.05] hover:text-ink"
                 >
                   Admin dashboard <ExternalLink className="h-3.5 w-3.5" />
                 </Link>
@@ -388,7 +384,7 @@ export const DashboardPage = () => {
             </div>
           </div>
 
-          <div className="mt-9 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {[
               { label: 'Upcoming journeys', value: stats.upcoming, icon: CalendarDays },
               { label: 'Total trips', value: bookings.length, icon: Ticket },
@@ -398,13 +394,19 @@ export const DashboardPage = () => {
               return (
                 <div
                   key={item.label}
-                  className="rounded-2xl border border-cream-100/10 bg-cream-100/[0.05] px-4 py-3.5"
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white px-4 py-4 shadow-soft sm:px-5"
                 >
-                  <Icon className="h-4 w-4 text-clay-300" strokeWidth={1.7} />
-                  <p className="mt-2 font-display text-2xl leading-none text-cream-50">{item.value}</p>
-                  <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.14em] text-cream-200/45">
-                    {item.label}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-ink-400">
+                      {item.label}
+                    </p>
+                    <p className="mt-1.5 whitespace-nowrap font-display text-2xl leading-none text-ink">
+                      {item.value}
+                    </p>
+                  </div>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-forest/10 text-forest">
+                    <Icon className="h-4 w-4" strokeWidth={1.8} />
+                  </span>
                 </div>
               );
             })}
