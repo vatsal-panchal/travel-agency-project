@@ -31,14 +31,24 @@ app.disable('x-powered-by');
 
 // CORS setup
 const allowedOrigins = env.CLIENT_URL.split(',')
-  .map((origin) => origin.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '').toLowerCase())
+  .map((origin) =>
+    origin
+      .trim()
+      .replace(/^['"]|['"]$/g, '')
+      .replace(/[/?#\s]+$/, '')
+      .toLowerCase()
+  )
   .filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow non-browser agents (cURL, mobile apps, server-to-server) with no Origin header
     if (!origin) return callback(null, true);
-    const normalizedOrigin = origin.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '').toLowerCase();
+    const normalizedOrigin = origin
+      .trim()
+      .replace(/^['"]|['"]$/g, '')
+      .replace(/[/?#\s]+$/, '')
+      .toLowerCase();
     if (allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
