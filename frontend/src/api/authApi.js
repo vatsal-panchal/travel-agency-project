@@ -22,6 +22,11 @@ export const authApi = {
     return res.data;
   },
 
+  updateProfile: async ({ name, email }) => {
+    const res = await api.patch('/auth/profile', { name, email });
+    return res.data;
+  },
+
   logout: async () => {
     try {
       await api.post('/auth/logout');

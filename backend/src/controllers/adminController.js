@@ -121,7 +121,6 @@ export const getAdminStats = catchAsync(async (req, res, next) => {
     },
   });
 });
-
 export const getUsers = catchAsync(async (req, res, next) => {
   const { page = 1, limit = 10, search, status } = req.query;
   const query = {};
@@ -160,7 +159,6 @@ export const getUsers = catchAsync(async (req, res, next) => {
     },
   });
 });
-
 export const toggleBlockUser = catchAsync(async (req, res, next) => {
   const { id } = req.params;
 
@@ -272,25 +270,3 @@ export const getAdminPayments = catchAsync(async (req, res, next) => {
     },
   });
 });
-
-export const seedDummyData = catchAsync(async (req, res, next) => {
-  const { richPackages } = await import('../scripts/seed.js');
-  let count = 0;
-  for (const pkgData of richPackages) {
-    let pkg = await Package.findOne({ slug: pkgData.slug });
-    if (!pkg) {
-      await Package.create(pkgData);
-      count++;
-    } else {
-      Object.assign(pkg, pkgData);
-      await pkg.save();
-      count++;
-    }
-  }
-
-  res.status(200).json({
-    success: true,
-    message: `Successfully seeded / updated ${count} rich travel packages!`,
-  });
-});
-

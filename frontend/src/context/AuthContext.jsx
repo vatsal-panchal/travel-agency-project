@@ -4,10 +4,13 @@ import { authApi } from '../api/authApi';
 import { setAccessToken } from '../api/client';
 
 const AuthContext = createContext(null);
+const profilePhotoKey = (userId) => `travel-agency:profile-photo:${userId}`;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [profilePhotoError, setProfilePhotoError] = useState('');
 
   const checkAuth = async () => {
     try {
@@ -37,6 +40,23 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('auth:logout', handleSessionLogout);
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setProfilePhoto(null);
+      setProfilePhotoError('');
+      return;
+    }
+
+    try {
+      setProfilePhoto(window.localStorage.getItem(profilePhotoKey(user.id)));
+      setProfilePhotoError('');
+    } catch (error) {
+      console.error('Could not read the locally saved profile photo', error);
+      setProfilePhoto(null);
+      setProfilePhotoError('This browser could not access local photo storage.');
+    }
+  }, [user?.id]);
+
   const login = async (credentials) => {
     const res = await authApi.login(credentials);
     const userData = res.data?.user;
@@ -51,6 +71,30 @@ export const AuthProvider = ({ children }) => {
     return res;
   };
 
+  const updateProfile = async (profile) => {
+    const res = await authApi.updateProfile(profile);
+    if (res.data?.user) setUser(res.data.user);
+    return res;
+  };
+
+  const updateProfilePhoto = (photoData) => {
+    if (!user?.id) {
+      throw new Error('You must be signed in to update your profile photo.');
+    }
+
+    const key = profilePhotoKey(user.id);
+    try {
+      if (photoData) window.localStorage.setItem(key, photoData);
+      else window.localStorage.removeItem(key);
+    } catch (error) {
+      console.error('Could not save the profile photo in local browser storage', error);
+      throw new Error('Photo could not be saved. Check that browser storage is enabled and has space.');
+    }
+
+    setProfilePhoto(photoData || null);
+    setProfilePhotoError('');
+  };
+
   const logout = async () => {
     try {
       await authApi.logout();
@@ -63,11 +107,15 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
+        profilePhoto,
+        profilePhotoError,
         loading,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'admin',
         login,
         register,
+        updateProfile,
+        updateProfilePhoto,
         logout,
         checkAuth,
         setUser,

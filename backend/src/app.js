@@ -17,7 +17,6 @@ import adminRoutes from './routes/adminRoutes.js';
 import enquiryRoutes from './routes/enquiryRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import wishlistRoutes from './routes/wishlistRoutes.js';
-import chatRoutes from './routes/chatRoutes.js';
 
 const app = express();
 
@@ -89,7 +88,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/wishlist', wishlistRoutes);
-app.use('/api/chat', chatRoutes);
 
 // Catch-all 404 for unhandled API endpoints
 app.use((req, res, next) => {

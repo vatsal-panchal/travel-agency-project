@@ -18,8 +18,6 @@ const envSchema = z.object({
   ADMIN_NAME: z.string().default('Super Admin'),
   ADMIN_EMAIL: z.string().email('Invalid ADMIN_EMAIL'),
   ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD must be at least 8 characters'),
-  GROQ_API_KEY: z.string().optional().default(''),
-  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
 }).refine(
   (data) => data.JWT_ACCESS_SECRET !== data.JWT_REFRESH_SECRET,
   {

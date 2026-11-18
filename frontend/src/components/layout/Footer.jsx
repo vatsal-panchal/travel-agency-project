@@ -86,7 +86,7 @@ export const Footer = () => {
       <div className="grain pointer-events-none absolute inset-0 opacity-40" />
       <div
         className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full opacity-30 blur-3xl"
-        style={{ background: 'radial-gradient(circle, #C75B39 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, #DE6D50 0%, transparent 70%)' }}
       />
 
       <div className="container-x relative">

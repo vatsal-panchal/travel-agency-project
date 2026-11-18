@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import {
   AlertCircle,
   ArrowRight,
+  Camera,
   CalendarCheck,
   CalendarDays,
   CheckCircle2,
@@ -11,12 +12,16 @@ import {
   Heart,
   KeyRound,
   Loader2,
+  Mail,
   MapPin,
   ReceiptText,
-  Settings,
+  Save,
   ShieldCheck,
   Ticket,
+  Trash2,
+  Upload,
   Users,
+  UserRound,
   XCircle,
 } from 'lucide-react';
 import { bookingApi } from '../api/bookingApi';
@@ -37,6 +42,67 @@ const formatDate = (value, options = {}) => {
     month: 'short',
     year: 'numeric',
     ...options,
+  });
+};
+
+const PROFILE_IMAGE_SIZE = 512;
+const MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
+const PROFILE_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+const resizeProfileImage = (file) => {
+  if (!PROFILE_IMAGE_TYPES.includes(file.type)) {
+    return Promise.reject(new Error('Choose a JPG, PNG, or WebP image.'));
+  }
+  if (file.size > MAX_PROFILE_IMAGE_BYTES) {
+    return Promise.reject(new Error('Choose an image smaller than 5 MB.'));
+  }
+
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const cropSize = Math.min(image.naturalWidth, image.naturalHeight);
+      if (image.naturalWidth * image.naturalHeight > 30000000) {
+        reject(new Error('This image is too large to process. Choose a smaller image.'));
+        return;
+      }
+      const cropX = (image.naturalWidth - cropSize) / 2;
+      const cropY = (image.naturalHeight - cropSize) / 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = PROFILE_IMAGE_SIZE;
+      canvas.height = PROFILE_IMAGE_SIZE;
+      const context = canvas.getContext('2d');
+
+      if (!context || !cropSize) {
+        reject(new Error('This image could not be processed. Try another image.'));
+        return;
+      }
+
+      try {
+        context.drawImage(
+          image,
+          cropX,
+          cropY,
+          cropSize,
+          cropSize,
+          0,
+          0,
+          PROFILE_IMAGE_SIZE,
+          PROFILE_IMAGE_SIZE
+        );
+        resolve(canvas.toDataURL('image/webp', 0.82));
+      } catch {
+        reject(new Error('This image could not be processed. Try another image.'));
+      }
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('This image could not be opened. Try another image.'));
+    };
+    image.src = objectUrl;
   });
 };
 
@@ -75,7 +141,15 @@ const EmptyState = ({ icon, title, copy, action }) => {
 };
 
 export const DashboardPage = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const {
+    user,
+    profilePhoto,
+    profilePhotoError,
+    isAuthenticated,
+    logout,
+    updateProfile,
+    updateProfilePhoto,
+  } = useAuth();
   const { wishlistItems } = useWishlist();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -98,12 +172,26 @@ export const DashboardPage = () => {
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileEmail, setProfileEmail] = useState(user?.email || '');
+  const [profilePassword, setProfilePassword] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [photoSuccess, setPhotoSuccess] = useState('');
+  const [photoError, setPhotoError] = useState('');
+  const [photoLoading, setPhotoLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/dashboard' } });
     }
   }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    setProfileName(user?.name || '');
+    setProfileEmail(user?.email || '');
+  }, [user?.name, user?.email]);
 
   const fetchDashboardData = async () => {
     try {
@@ -163,6 +251,61 @@ export const DashboardPage = () => {
     }
   };
 
+  const handleProfileSubmit = async (event) => {
+    event.preventDefault();
+    setProfileError('');
+    setProfileSuccess('');
+    const emailChanged = profileEmail.trim().toLowerCase() !== user?.email;
+
+    try {
+      setProfileLoading(true);
+      await updateProfile({
+        name: profileName.trim(),
+        email: profileEmail.trim(),
+        ...(emailChanged ? { currentPassword: profilePassword } : {}),
+      });
+      setProfilePassword('');
+      setProfileSuccess('Your profile details have been updated.');
+    } catch (err) {
+      setProfileError(
+        err.response?.data?.message || 'Could not update your profile. Please try again.'
+      );
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleProfilePhotoChange = async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    setPhotoError('');
+    setPhotoSuccess('');
+    setPhotoLoading(true);
+    try {
+      const imageData = await resizeProfileImage(file);
+      updateProfilePhoto(imageData);
+      setPhotoSuccess('Photo saved on this device.');
+    } catch (error) {
+      setPhotoError(error.message || 'Could not save this photo.');
+    } finally {
+      setPhotoLoading(false);
+      input.value = '';
+    }
+  };
+
+  const handleRemoveProfilePhoto = () => {
+    setPhotoError('');
+    setPhotoSuccess('');
+    try {
+      updateProfilePhoto(null);
+      setPhotoSuccess('Profile photo removed from this device.');
+    } catch (error) {
+      setPhotoError(error.message || 'Could not remove this photo.');
+    }
+  };
+
   const stats = useMemo(() => {
     const upcoming = bookings.filter(
       (booking) =>
@@ -180,10 +323,13 @@ export const DashboardPage = () => {
     { id: 'bookings', label: 'Bookings', icon: CalendarCheck, count: bookings.length },
     { id: 'payments', label: 'Receipts', icon: ReceiptText, count: payments.length },
     { id: 'wishlist', label: 'Saved', icon: Heart, count: wishlistItems.length },
-    { id: 'settings', label: 'Account', icon: Settings },
+    { id: 'settings', label: 'Profile', icon: UserRound },
   ];
 
   const firstName = user?.name?.split(' ')[0] || 'Traveller';
+  const hasProfileChanges =
+    profileName.trim() !== user?.name ||
+    profileEmail.trim().toLowerCase() !== user?.email;
 
   if (!isAuthenticated) {
     return (
@@ -203,8 +349,12 @@ export const DashboardPage = () => {
         <div className="container-x py-10 sm:py-14">
           <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
             <div className="flex items-start gap-4">
-              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-cream-100/10 font-display text-3xl text-cream-50 ring-1 ring-cream-100/15">
-                {user?.name?.charAt(0)?.toUpperCase() || 'T'}
+              <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-cream-100/10 font-display text-3xl text-cream-50 ring-1 ring-cream-100/15">
+                {profilePhoto ? (
+                  <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  user?.name?.charAt(0)?.toUpperCase() || 'T'
+                )}
               </span>
               <div>
                 <span className="text-[9px] font-extrabold uppercase tracking-[0.22em] text-clay-300">
@@ -555,9 +705,182 @@ export const DashboardPage = () => {
 
         {/* Settings */}
         {activeTab === 'settings' && (
-          <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_0.8fr]">
-            <Reveal>
-              <div className="card-surface p-6 sm:p-8">
+          <div className="mt-6 grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(19rem,0.85fr)]">
+            <div className="space-y-5">
+              <Reveal>
+                <div className="overflow-hidden rounded-3xl border border-ink/10 bg-cream-50 shadow-soft">
+                  <div className="border-b border-ink/10 bg-gradient-to-r from-cream-100 to-white px-5 py-5 sm:px-7">
+                    <p className="eyebrow">Your account</p>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <div>
+                        <h2 className="font-display text-2xl leading-tight text-ink">Personal profile</h2>
+                        <p className="mt-1 text-[11px] text-ink-500">
+                          Keep your details and photo up to date.
+                        </p>
+                      </div>
+                      <span className="hidden h-10 w-10 place-items-center rounded-2xl bg-forest/10 text-forest sm:grid">
+                        <UserRound className="h-5 w-5" strokeWidth={1.7} />
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 p-5 sm:p-7">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-ink/[0.07] bg-white p-4 sm:flex-row sm:items-center sm:p-5">
+                      <div className="relative h-20 w-20 shrink-0">
+                        <span className="grid h-20 w-20 place-items-center overflow-hidden rounded-full bg-forest text-2xl font-bold text-white ring-4 ring-forest/10">
+                          {profilePhoto ? (
+                            <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            user?.name?.charAt(0)?.toUpperCase() || 'T'
+                          )}
+                        </span>
+                        <span className="absolute bottom-0 right-0 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-clay-600 text-white shadow-soft">
+                          <Camera className="h-3.5 w-3.5" />
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-extrabold text-ink">Profile photo</h3>
+                        <p className="mt-1 text-[11px] leading-relaxed text-ink-500">
+                          JPG, PNG or WebP · up to 5 MB. Cropped square and saved only in this browser.
+                        </p>
+                        <input
+                          id="profile-photo-input"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          disabled={photoLoading}
+                          onChange={handleProfilePhotoChange}
+                          className="peer sr-only"
+                          aria-describedby="profile-photo-help"
+                        />
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <label
+                            htmlFor="profile-photo-input"
+                            className="btn-ink btn-sm cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-forest"
+                          >
+                            {photoLoading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Upload className="h-3.5 w-3.5" />
+                            )}
+                            {photoLoading ? 'Preparing photo…' : profilePhoto ? 'Change photo' : 'Upload photo'}
+                          </label>
+                          {profilePhoto && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveProfilePhoto}
+                              disabled={photoLoading}
+                              className="btn-outline btn-sm text-rose-700 hover:border-rose-300 hover:bg-rose-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Remove
+                            </button>
+                          )}
+                        </div>
+                        <p id="profile-photo-help" className="sr-only">
+                          Your photo is resized and stored in local browser storage, not uploaded to the server.
+                        </p>
+                        {(photoError || profilePhotoError) && (
+                          <p role="alert" className="mt-2 text-[11px] font-semibold text-rose-700">
+                            {photoError || profilePhotoError}
+                          </p>
+                        )}
+                        {photoSuccess && (
+                          <p role="status" className="mt-2 text-[11px] font-semibold text-moss">
+                            {photoSuccess}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {profileSuccess && (
+                      <div role="status" className="flex items-center gap-2 rounded-2xl border border-moss/20 bg-moss/10 px-4 py-3 text-[12px] font-semibold text-moss">
+                        <CheckCircle2 className="h-4 w-4 shrink-0" /> {profileSuccess}
+                      </div>
+                    )}
+                    {profileError && (
+                      <div role="alert" className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] font-semibold text-rose-700">
+                        <AlertCircle className="h-4 w-4 shrink-0" /> {profileError}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleProfileSubmit} className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="profile-name" className="field-label">Full name</label>
+                        <div className="relative">
+                          <UserRound className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                          <input
+                            id="profile-name"
+                            type="text"
+                            required
+                            minLength={2}
+                            maxLength={50}
+                            autoComplete="name"
+                            value={profileName}
+                            onChange={(event) => setProfileName(event.target.value)}
+                            className="field-input pl-11"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="profile-email" className="field-label">Email address</label>
+                        <div className="relative">
+                          <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                          <input
+                            id="profile-email"
+                            type="email"
+                            required
+                            autoComplete="email"
+                            value={profileEmail}
+                            onChange={(event) => setProfileEmail(event.target.value)}
+                            className="field-input pl-11"
+                          />
+                        </div>
+                      </div>
+                      {profileEmail.trim().toLowerCase() !== user?.email && (
+                        <div className="sm:col-span-2">
+                          <label htmlFor="profile-current-password" className="field-label">
+                            Confirm current password
+                          </label>
+                          <input
+                            id="profile-current-password"
+                            type="password"
+                            required
+                            autoComplete="current-password"
+                            value={profilePassword}
+                            onChange={(event) => setProfilePassword(event.target.value)}
+                            className="field-input"
+                          />
+                          <p className="mt-1.5 text-[10px] text-ink-400">
+                            We verify your password before changing your sign-in email.
+                          </p>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-4 sm:col-span-2">
+                        <p className="text-[10px] text-ink-400">
+                          Your photo stays on this device and is not synced.
+                        </p>
+                        <button
+                          type="submit"
+                          disabled={profileLoading || !hasProfileChanges}
+                          className="btn-ink btn-sm disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          {profileLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" /> Saving changes…
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4" /> Save changes
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </Reveal>
+
+              <Reveal delay={70}>
+                <div className="card-surface p-6 sm:p-8">
                 <div className="flex items-center gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-2xl bg-forest text-cream-50">
                     <KeyRound className="h-4 w-4" strokeWidth={1.7} />
@@ -621,8 +944,9 @@ export const DashboardPage = () => {
                     )}
                   </button>
                 </form>
-              </div>
-            </Reveal>
+                </div>
+              </Reveal>
+            </div>
 
             <Reveal delay={80}>
               <div className="flex h-full flex-col justify-between rounded-3xl bg-forest-deep p-6 text-cream-100 sm:p-8">
@@ -634,8 +958,8 @@ export const DashboardPage = () => {
                     Your account, protected.
                   </h2>
                   <p className="mt-2 text-[12.5px] leading-relaxed text-cream-200/60">
-                    Payments are handled in a secure session and your full card number is never
-                    stored. Only the last four digits are kept on receipts.
+                    Checkout is a demo sandbox and is not connected to a payment provider. Never
+                    enter real card details; only a card brand and last four digits appear on receipts.
                   </p>
                   <dl className="mt-6 space-y-3 border-t border-cream-100/10 pt-5 text-[11px]">
                     <div className="flex items-center justify-between gap-3">

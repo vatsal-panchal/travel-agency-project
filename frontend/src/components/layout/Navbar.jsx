@@ -23,7 +23,7 @@ const navLinks = [
 ];
 
 export const Navbar = () => {
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, profilePhoto, isAuthenticated, isAdmin, logout } = useAuth();
   const { wishlistCount } = useWishlist();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -132,8 +132,12 @@ export const Navbar = () => {
                     aria-expanded={dropdownOpen}
                     className="ml-1 flex items-center gap-2 rounded-full border border-ink/12 bg-cream-50 p-1 pr-1 transition hover:border-ink/30 sm:pr-3"
                   >
-                    <span className="grid h-7 w-7 place-items-center rounded-full bg-ink text-[11px] font-extrabold text-cream-50">
-                      {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-ink text-[11px] font-extrabold text-cream-50">
+                      {profilePhoto ? (
+                        <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        user?.name ? user.name.charAt(0).toUpperCase() : 'U'
+                      )}
                     </span>
                     <span className="hidden max-w-[90px] truncate text-[12px] font-bold text-ink sm:block">
                       {user?.name?.split(' ')[0]}
@@ -162,6 +166,13 @@ export const Navbar = () => {
                             <ShieldCheck className="h-4 w-4 text-clay-600" /> Admin dashboard
                           </Link>
                         )}
+                        <Link
+                          to="/dashboard?tab=settings"
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-bold text-ink-700 transition hover:bg-cream-100"
+                        >
+                          <User className="h-4 w-4 text-moss" /> My profile
+                        </Link>
                         <Link
                           to="/dashboard?tab=bookings"
                           onClick={() => setDropdownOpen(false)}
@@ -260,11 +271,11 @@ export const Navbar = () => {
               {isAuthenticated ? (
                 <>
                   <Link
-                    to="/dashboard"
+                    to="/dashboard?tab=settings"
                     className="btn-ink w-full"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <User className="h-4 w-4" /> My account
+                    <User className="h-4 w-4" /> My profile
                   </Link>
                   <button onClick={handleLogout} className="btn-outline w-full">
                     <LogOut className="h-4 w-4" /> Sign out

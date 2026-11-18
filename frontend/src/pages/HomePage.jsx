@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
   ArrowRight,
   ArrowUpRight,
   BadgeCheck,
-  CalendarDays,
   CheckCircle2,
   Compass,
   MapPin,
@@ -13,7 +12,6 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
-  Star,
   Users,
 } from 'lucide-react';
 import { packageApi } from '../api/packageApi';
@@ -62,22 +60,38 @@ const categories = [
   },
 ];
 
-const marqueePlaces = [
-  'Bali',
-  'Santorini',
-  'Serengeti',
-  'Kyoto',
-  'Maldives',
-  'Swiss Alps',
-  'Varanasi',
-  'Amalfi',
-  'Banff',
-  'Dubai',
-  'Rishikesh',
-  'Paris',
+const mapPins = [
+  {
+    label: 'Bali',
+    image: categories[0].image,
+    position: 'left-[12%] top-[57%]',
+  },
+  {
+    label: 'Swiss Alps',
+    image: categories[1].image,
+    position: 'right-[12%] top-[51%]',
+  },
+  {
+    label: 'Serengeti',
+    image: categories[2].image,
+    position: 'left-[27%] bottom-[10%]',
+  },
+  {
+    label: 'Kyoto',
+    image: categories[3].image,
+    position: 'right-[26%] bottom-[12%]',
+  },
+  {
+    label: 'Maldives',
+    image: categories[0].image,
+    position: 'left-[49%] top-[72%]',
+  },
+  {
+    label: 'Amalfi Coast',
+    image: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963?auto=format&fit=crop&w=160&q=80',
+    position: 'left-[43%] top-[33%]',
+  },
 ];
-
-const avatarInitials = ['AM', 'RK', 'SA', 'DW', 'PN'];
 
 const formatDate = (value) => {
   if (!value) return '';
@@ -90,6 +104,7 @@ const formatDate = (value) => {
 export const HomePage = () => {
   const navigate = useNavigate();
   const [featured, setFeatured] = useState([]);
+  const [packageCount, setPackageCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState([]);
   const [reviewStats, setReviewStats] = useState({ avgRating: 0, totalReviews: 0 });
@@ -117,6 +132,7 @@ export const HomePage = () => {
 
         if (pkgRes.status === 'fulfilled') {
           setFeatured(pkgRes.value.data?.packages || []);
+          setPackageCount(pkgRes.value.data?.total || 0);
         }
         if (reviewRes.status === 'fulfilled') {
           setReviews(reviewRes.value.data?.reviews || []);
@@ -166,241 +182,225 @@ export const HomePage = () => {
 
   const ratingLabel = reviewStats.avgRating
     ? reviewStats.avgRating.toFixed(1)
-    : '4.9';
+    : '—';
   const reviewLabel = reviewStats.totalReviews
     ? `${reviewStats.totalReviews} verified reviews`
-    : 'Verified traveller reviews';
-
-  const heroPackage = useMemo(() => featured[0], [featured]);
+    : 'No verified reviews yet';
 
   return (
     <div className="overflow-x-clip">
       {/* ============================= HERO ============================= */}
-      <section className="relative">
-        <div className="container-x grid items-center gap-14 pb-16 pt-10 lg:grid-cols-[1.02fr_0.98fr] lg:gap-10 lg:pb-24 lg:pt-16">
-          <div className="relative z-10">
-            <Reveal>
-              <span className="eyebrow">Small-group journeys · Est. 2014</span>
-            </Reveal>
-
-            <Reveal delay={80}>
-              <h1 className="display-hero mt-5 max-w-[15ch] text-[3.35rem] text-ink sm:text-[4.5rem] lg:text-[5.2rem]">
-                Go somewhere that{' '}
-                <em className="font-light italic text-clay-500">stays with you.</em>
-              </h1>
-            </Reveal>
-
-            <Reveal delay={160}>
-              <p className="mt-6 max-w-lg text-[15px] leading-relaxed text-ink-500 sm:text-base">
-                Thoughtfully paced itineraries, local guides who actually live there, and
-                small groups that leave room for the unexpected. We handle the details, so
-                you can be present for the good parts.
-              </p>
-            </Reveal>
-
-            {/* Search */}
-            <Reveal delay={240}>
-              <form
-                onSubmit={handleSearch}
-                className="mt-9 max-w-2xl rounded-[1.6rem] border border-ink/10 bg-cream-50 p-2 shadow-card"
-              >
-                <div className="grid items-stretch gap-1 sm:grid-cols-[1.25fr_0.9fr_auto]">
-                  <label className="flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition focus-within:bg-cream-100">
-                    <MapPin className="h-4 w-4 shrink-0 text-clay-500" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[9px] font-extrabold uppercase tracking-[0.16em] text-ink-400">
-                        Where to
-                      </span>
-                      <input
-                        type="text"
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        placeholder="Bali, Kyoto, Serengeti…"
-                        className="mt-0.5 w-full truncate bg-transparent text-[13px] font-bold text-ink placeholder:font-medium placeholder:text-ink-300 focus:outline-none"
-                      />
-                    </span>
-                  </label>
-
-                  <label className="flex items-center gap-3 rounded-2xl border-t border-ink/[0.07] px-4 py-3 text-left transition focus-within:bg-cream-100 sm:border-l sm:border-t-0">
-                    <Compass className="h-4 w-4 shrink-0 text-clay-500" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[9px] font-extrabold uppercase tracking-[0.16em] text-ink-400">
-                        Journey type
-                      </span>
-                      <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        className="mt-0.5 w-full cursor-pointer truncate bg-transparent text-[13px] font-bold text-ink focus:outline-none"
-                      >
-                        <option value="">Any experience</option>
-                        <option value="beach">Beach & islands</option>
-                        <option value="mountain">Mountain</option>
-                        <option value="adventure">Adventure & safari</option>
-                        <option value="city">City & culture</option>
-                        <option value="religious">Spiritual</option>
-                      </select>
-                    </span>
-                  </label>
-
-                  <button
-                    type="submit"
-                    className="btn-clay h-full min-h-[54px] gap-2 rounded-2xl px-7"
-                  >
-                    <Search className="h-4 w-4" />
-                    <span className="sm:hidden lg:inline">Search</span>
-                  </button>
-                </div>
-              </form>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-ink-400">
-                  Popular
-                </span>
-                {['Bali', 'Swiss Alps', 'Maldives', 'Japan'].map((place) => (
-                  <button
-                    key={place}
-                    onClick={() => handleQuickSearch(place)}
-                    className="rounded-full border border-ink/10 px-3 py-1 text-[11px] font-bold text-ink-600 transition hover:border-clay-400 hover:text-clay-700"
-                  >
-                    {place}
-                  </button>
-                ))}
-              </div>
-            </Reveal>
-
-            {/* Trust row */}
-            <Reveal delay={320}>
-              <div className="mt-9 flex flex-wrap items-center gap-6 border-t border-ink/10 pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2.5">
-                    {avatarInitials.map((initials, i) => (
-                      <span
-                        key={initials}
-                        className={`grid h-8 w-8 place-items-center rounded-full border-2 border-cream-100 text-[9px] font-extrabold ${
-                          ['bg-forest text-cream-50', 'bg-clay-500 text-white', 'bg-cream-300 text-ink', 'bg-ink-600 text-cream-50', 'bg-moss text-white'][i]
-                        }`}
-                      >
-                        {initials}
-                      </span>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1 text-amber-500">
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <Star key={i} className="h-3 w-3 fill-current" strokeWidth={0} />
-                      ))}
-                      <span className="ml-1 text-[11px] font-extrabold text-ink">{ratingLabel}</span>
-                    </div>
-                    <p className="text-[10px] font-semibold text-ink-400">{reviewLabel}</p>
-                  </div>
-                </div>
-
-                <div className="hidden h-8 w-px bg-ink/10 sm:block" />
-
-                <p className="flex items-center gap-2 text-[11px] font-bold text-ink-500">
-                  <ShieldCheck className="h-4 w-4 text-moss" />
-                  Secure checkout · Free cancellation within 48h
-                </p>
-              </div>
-            </Reveal>
-          </div>
-
-          {/* Hero collage */}
-          <Reveal delay={180} className="relative mx-auto w-full max-w-[540px] lg:max-w-none">
-            <div className="relative">
-              <div className="relative aspect-[4/5] overflow-hidden rounded-[2.4rem] bg-cream-300 shadow-lift">
-                <img
-                  src="https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1100&q=80"
-                  alt="Santorini caldera at golden hour"
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/50 via-transparent to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-6">
-                  <div>
-                    <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-cream-200/80">
-                      Editor’s pick · Greece
-                    </p>
-                    <p className="mt-1 font-display text-2xl leading-tight text-white">
-                      Santorini & the Cyclades
-                    </p>
-                  </div>
-                  <Link
-                    to="/packages?search=Greece"
-                    aria-label="View Santorini journey"
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cream-50 text-ink transition hover:bg-clay-500 hover:text-white"
-                  >
-                    <ArrowUpRight className="h-5 w-5" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Secondary image */}
-              <div className="absolute -bottom-8 -left-4 hidden w-[42%] overflow-hidden rounded-[1.6rem] border-4 border-cream-100 shadow-card sm:block lg:-left-10">
-                <img
-                  src="https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=600&q=80"
-                  alt="Rice terraces in Bali"
-                  className="aspect-[5/6] h-full w-full object-cover"
-                />
-              </div>
-
-              {/* Floating next departure card */}
-              <div className="absolute -right-3 top-6 w-[190px] animate-float rounded-2xl border border-white/40 bg-cream-50/95 p-4 shadow-card backdrop-blur sm:-right-6 sm:top-10">
-                <div className="flex items-center justify-between">
-                  <span className="text-[9px] font-extrabold uppercase tracking-[0.16em] text-ink-400">
-                    Next departure
-                  </span>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                </div>
-                <p className="mt-2 font-display text-[17px] leading-tight text-ink">
-                  {heroPackage?.title || 'Bali Tropical Paradise'}
-                </p>
-                <div className="mt-3 flex items-center justify-between border-t border-ink/10 pt-2.5">
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-ink-500">
-                    <CalendarDays className="h-3 w-3 text-clay-500" />
-                    {heroPackage?.startDate
-                      ? new Date(heroPackage.startDate).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                        })
-                      : '12 seats'}
-                  </span>
-                  <Link
-                    to={heroPackage ? `/packages/${heroPackage._id || heroPackage.id}` : '/packages'}
-                    className="text-[10px] font-extrabold text-clay-600 hover:text-clay-800"
-                  >
-                    View →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Rotating badge */}
-              <div className="absolute -left-2 top-8 hidden h-20 w-20 -rotate-12 place-items-center rounded-full border border-ink/15 bg-cream-100/90 text-center shadow-soft backdrop-blur lg:grid">
-                <div>
-                  <p className="font-display text-[19px] leading-none text-ink">12</p>
-                  <p className="mt-0.5 text-[7px] font-extrabold uppercase tracking-[0.14em] text-ink-400">
-                    Years of
-                    <br />
-                    journeys
-                  </p>
-                </div>
-              </div>
-            </div>
+      <section className="relative isolate overflow-hidden bg-[#f5f7f5] pb-10 sm:pb-12">
+        <div className="container-x relative pt-10 sm:pt-14">
+          <Reveal className="text-center">
+            <span className="eyebrow">Journeys made personal · Wanderlust Atelier</span>
+            <h1 className="display-hero mx-auto mt-4 max-w-4xl text-[2.75rem] text-ink sm:text-[4rem] lg:text-[4.65rem]">
+              Find a place that{' '}
+              <em className="font-light italic text-clay-500">changes your pace.</em>
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-[13px] leading-relaxed text-ink-500 sm:text-[15px]">
+              Thoughtfully planned escapes, small groups and local guides. Choose your
+              direction; we’ll take care of the details.
+            </p>
           </Reveal>
-        </div>
-      </section>
 
-      {/* ============================= MARQUEE ============================= */}
-      <section className="border-y border-ink/10 bg-cream-50 py-4">
-        <div className="mask-fade-x flex overflow-hidden">
-          <div className="flex min-w-full shrink-0 animate-marquee items-center">
-            {[...marqueePlaces, ...marqueePlaces].map((place, i) => (
-              <span
-                key={`${place}-${i}`}
-                className="flex items-center gap-6 whitespace-nowrap px-6 text-[11px] font-extrabold uppercase tracking-[0.24em] text-ink-400"
+          <div className="relative mx-auto mt-9 max-w-[1240px]">
+            <div className="relative h-[470px] overflow-hidden rounded-[2rem] border border-ink/10 bg-[#e7ede9] shadow-soft sm:h-[500px] lg:h-[530px]">
+              <svg
+                viewBox="0 0 1200 530"
+                preserveAspectRatio="xMidYMid slice"
+                className="absolute inset-0 h-full w-full"
+                aria-hidden="true"
               >
-                {place}
-                <span className="h-1 w-1 rounded-full bg-clay-400" />
-              </span>
+                <defs>
+                  <pattern id="journey-map-grid" width="70" height="70" patternUnits="userSpaceOnUse">
+                    <path d="M 70 0 L 0 0 0 70" fill="none" stroke="#cbd5cf" strokeWidth="1" />
+                  </pattern>
+                </defs>
+                <rect width="1200" height="530" fill="url(#journey-map-grid)" />
+                <g fill="#f8f8f2" opacity=".78">
+                  <path d="M0 115 180 65l140 62-42 110L75 255 0 210z" />
+                  <path d="m370 0 190 44 26 132-134 40-114-95z" />
+                  <path d="m786 30 180-18 126 86-40 144-177 17-92-103z" />
+                  <path d="m82 340 164-79 121 73-36 160H96z" />
+                  <path d="m510 302 143-75 145 75 28 153-192 79-136-101z" />
+                  <path d="m906 299 190-53 104 85v199H1015l-93-119z" />
+                </g>
+                <path
+                  d="M1200 170c-156 10-205 131-336 152s-188-49-317-24-205 132-323 122S98 355 0 402"
+                  fill="none"
+                  stroke="#d7e5e5"
+                  strokeWidth="22"
+                  opacity=".8"
+                />
+                <path
+                  d="M1200 170c-156 10-205 131-336 152s-188-49-317-24-205 132-323 122S98 355 0 402"
+                  fill="none"
+                  stroke="#c2d5d5"
+                  strokeWidth="1.5"
+                />
+                <g fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="18" opacity=".9">
+                  <path d="M-25 388C151 305 201 398 317 323s156-133 287-94 168 90 282 37 168-161 345-121" />
+                  <path d="M67-20c91 143 163 123 206 244s-6 164 93 237 184 65 246 105" />
+                  <path d="M648-24c-9 109 62 148 45 255s-72 137-35 221 129 111 161 142" />
+                  <path d="M1040-36c-47 120-7 196 41 256s10 117 67 179 82 66 86 137" />
+                  <path d="M-12 165c132 15 190-32 303 12s144 127 268 129 198-67 318-19 177 115 340 78" />
+                </g>
+                <g fill="none" stroke="#fff" strokeLinecap="round" strokeWidth="7" opacity=".95">
+                  <path d="M-20 286c106-64 143-43 231-88s144-32 206 13 116 38 173-5 116-62 215-26 153 38 238-16 106-68 177-68" />
+                  <path d="M-20 454c91-44 133-33 195-3s109 39 166 4 91-97 160-80 95 92 174 99 129-42 209-57 173 17 336-54" />
+                  <path d="M312-20c-4 86 55 131 15 219s-89 126-51 212 111 87 132 158" />
+                  <path d="M866-20c45 87 18 143-33 201s-53 118 3 184 97 98 88 190" />
+                  <path d="M1092 0c-92 83-112 132-91 212s77 115 67 190-71 97-101 154" />
+                  <path d="M22 98c84 56 140 70 217 50s130-15 196 31 88 59 160 45 93-58 168-57 125 46 198 30 134-60 252-45" />
+                </g>
+                <g fill="none" stroke="#cbd5cf" strokeLinecap="round" strokeWidth="1">
+                  <path d="M-20 286c106-64 143-43 231-88s144-32 206 13 116 38 173-5 116-62 215-26 153 38 238-16 106-68 177-68" />
+                  <path d="M-20 454c91-44 133-33 195-3s109 39 166 4 91-97 160-80 95 92 174 99 129-42 209-57 173 17 336-54" />
+                  <path d="M312-20c-4 86 55 131 15 219s-89 126-51 212 111 87 132 158" />
+                  <path d="M866-20c45 87 18 143-33 201s-53 118 3 184 97 98 88 190" />
+                  <path d="M1092 0c-92 83-112 132-91 212s77 115 67 190-71 97-101 154" />
+                  <path d="M22 98c84 56 140 70 217 50s130-15 196 31 88 59 160 45 93-58 168-57 125 46 198 30 134-60 252-45" />
+                </g>
+                <g fill="none" stroke="#bdc9c1" strokeLinecap="round" strokeWidth="1.5">
+                  <path d="M-25 388C151 305 201 398 317 323s156-133 287-94 168 90 282 37 168-161 345-121" />
+                  <path d="M67-20c91 143 163 123 206 244s-6 164 93 237 184 65 246 105" />
+                  <path d="M648-24c-9 109 62 148 45 255s-72 137-35 221 129 111 161 142" />
+                  <path d="M1040-36c-47 120-7 196 41 256s10 117 67 179 82 66 86 137" />
+                  <path d="M-12 165c132 15 190-32 303 12s144 127 268 129 198-67 318-19 177 115 340 78" />
+                </g>
+                <path
+                  d="M155 390c115-95 157-8 256-92s157-100 244-14 145 103 231 17 130-101 212-66"
+                  fill="none"
+                  stroke="#c75b39"
+                  strokeDasharray="5 10"
+                  strokeLinecap="round"
+                  strokeWidth="3"
+                  opacity=".65"
+                />
+                <circle cx="155" cy="390" r="6" fill="#c75b39" />
+                <circle cx="1098" cy="235" r="6" fill="#c75b39" />
+              </svg>
+
+              <div className="absolute left-[8%] top-[48%] hidden text-[9px] font-extrabold uppercase tracking-[0.2em] text-ink-400/70 sm:block">
+                Coastal escapes
+              </div>
+              <div className="absolute right-[8%] top-[35%] hidden text-[9px] font-extrabold uppercase tracking-[0.2em] text-ink-400/70 sm:block">
+                Mountain routes
+              </div>
+              <div className="absolute bottom-[10%] left-[8%] hidden text-[9px] font-extrabold uppercase tracking-[0.2em] text-ink-400/70 sm:block">
+                Made for wandering
+              </div>
+
+              {mapPins.map((pin) => (
+                <button
+                  key={pin.label}
+                  type="button"
+                  onClick={() => handleQuickSearch(pin.label)}
+                  aria-label={`Explore journeys in ${pin.label}`}
+                  className={`group absolute z-10 hidden flex-col items-center sm:flex ${pin.position}`}
+                >
+                  <span className="relative block transition duration-300 group-hover:-translate-y-1">
+                    <img
+                      src={pin.image}
+                      alt=""
+                      className="h-11 w-11 rounded-full border-[3px] border-cream-50 object-cover shadow-card"
+                      loading="lazy"
+                    />
+                    <span className="absolute -bottom-1 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 rounded-br-sm bg-cream-50 shadow-sm" />
+                    <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-clay-500 text-white shadow-soft">
+                      <MapPin className="h-2.5 w-2.5" />
+                    </span>
+                  </span>
+                  <span className="mt-1 rounded-full border border-ink/5 bg-cream-50/95 px-2.5 py-1 text-[9px] font-extrabold text-ink shadow-soft backdrop-blur">
+                    {pin.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <form
+              onSubmit={handleSearch}
+              className="absolute left-3 right-3 top-3 z-20 mx-auto max-w-[760px] rounded-2xl border border-white/80 bg-cream-50/95 p-2 shadow-card backdrop-blur-md sm:left-6 sm:right-6 sm:top-5 sm:rounded-full sm:p-2"
+            >
+              <div className="grid items-stretch gap-1 sm:grid-cols-[1.25fr_1fr_auto]">
+                <label className="flex items-center gap-3 rounded-xl px-3 py-2 text-left transition focus-within:bg-cream-100 sm:rounded-full sm:px-4">
+                  <MapPin className="h-4 w-4 shrink-0 text-clay-500" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[8px] font-extrabold uppercase tracking-[0.15em] text-ink-400">
+                      Destination
+                    </span>
+                    <input
+                      type="text"
+                      value={destination}
+                      onChange={(event) => setDestination(event.target.value)}
+                      placeholder="Where would you like to go?"
+                      className="mt-0.5 w-full truncate bg-transparent text-[11px] font-bold text-ink placeholder:font-medium placeholder:text-ink-300 focus:outline-none sm:text-[12px]"
+                    />
+                  </span>
+                </label>
+                <label className="flex items-center gap-3 rounded-xl border-t border-ink/[0.07] px-3 py-2 text-left transition focus-within:bg-cream-100 sm:rounded-full sm:border-l sm:border-t-0 sm:px-4">
+                  <Compass className="h-4 w-4 shrink-0 text-clay-500" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[8px] font-extrabold uppercase tracking-[0.15em] text-ink-400">
+                      Journey style
+                    </span>
+                    <select
+                      value={category}
+                      onChange={(event) => setCategory(event.target.value)}
+                      className="mt-0.5 w-full cursor-pointer truncate bg-transparent text-[11px] font-bold text-ink focus:outline-none sm:text-[12px]"
+                    >
+                      <option value="">Any experience</option>
+                      <option value="beach">Beach & islands</option>
+                      <option value="mountain">Mountain</option>
+                      <option value="adventure">Adventure & safari</option>
+                      <option value="city">City & culture</option>
+                      <option value="religious">Spiritual</option>
+                    </select>
+                  </span>
+                </label>
+                <button
+                  type="submit"
+                  className="btn-ink min-h-10 gap-2 rounded-xl px-5 sm:min-h-12 sm:rounded-full"
+                >
+                  <Search className="h-4 w-4" />
+                  <span>Find a journey</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div className="container-x mt-5">
+          <div className="mx-auto grid max-w-[1240px] grid-cols-2 overflow-hidden rounded-3xl border border-ink/10 bg-cream-50 shadow-card sm:grid-cols-4">
+            {[
+              {
+                value: packageCount ? packageCount.toLocaleString('en-IN') : '—',
+                label: 'Journeys to explore',
+              },
+              {
+                value: Number(reviewStats.totalReviews || 0).toLocaleString('en-IN'),
+                label: 'Verified reviews',
+              },
+              {
+                value: reviewStats.totalReviews ? `${ratingLabel}/5` : '—',
+                label: 'Traveller rating',
+              },
+              { value: 'Human', label: 'Personal trip support' },
+            ].map((stat, index) => (
+              <div
+                key={stat.label}
+                className={`px-4 py-5 text-center sm:px-6 sm:py-6 ${
+                  index > 0 ? 'border-l border-ink/[0.08]' : ''
+                } ${index > 1 ? 'border-t border-ink/[0.08] sm:border-t-0' : ''}`}
+              >
+                <p className="font-display text-2xl leading-none text-ink sm:text-[1.8rem]">
+                  {stat.value}
+                </p>
+                <p className="mt-2 text-[8px] font-extrabold uppercase tracking-[0.12em] text-ink-400 sm:text-[9px]">
+                  {stat.label}
+                </p>
+              </div>
             ))}
           </div>
         </div>
@@ -514,7 +514,7 @@ export const HomePage = () => {
             <div className="grain pointer-events-none absolute inset-0 opacity-50" />
             <div
               className="pointer-events-none absolute -left-24 top-0 h-80 w-80 rounded-full opacity-25 blur-3xl"
-              style={{ background: 'radial-gradient(circle, #C75B39 0%, transparent 70%)' }}
+              style={{ background: 'radial-gradient(circle, #DE6D50 0%, transparent 70%)' }}
             />
             <div className="relative grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
               <div className="relative min-h-[320px] lg:min-h-full">
@@ -530,8 +530,12 @@ export const HomePage = () => {
                     <BadgeCheck className="h-4 w-4" />
                   </span>
                   <p className="text-[11px] font-semibold leading-snug text-cream-100">
-                    <span className="block font-extrabold text-white">Rated {ratingLabel}/5</span>
-                    {reviewLabel} from real, completed journeys
+                    <span className="block font-extrabold text-white">
+                      {reviewStats.totalReviews ? `Rated ${ratingLabel}/5` : 'Real traveller notes'}
+                    </span>
+                    {reviewStats.totalReviews
+                      ? `${reviewLabel} from completed journeys`
+                      : 'Ratings appear after completed journeys.'}
                   </p>
                 </div>
               </div>
@@ -585,10 +589,10 @@ export const HomePage = () => {
 
             <div className="relative grid grid-cols-2 divide-x divide-cream-100/10 border-t border-cream-100/10 sm:grid-cols-4">
               {[
-                ['12', 'Years designing journeys'],
-                ['48', 'Destinations on the ground'],
-                ['8', 'Average group size'],
-                ['96%', 'Travellers who rebook'],
+                [packageCount ? packageCount.toLocaleString('en-IN') : '—', 'Journeys in collection'],
+                [Number(reviewStats.totalReviews || 0).toLocaleString('en-IN'), 'Verified trip reviews'],
+                [reviewStats.totalReviews ? `${ratingLabel}/5` : '—', 'Average trip rating'],
+                ['24/7', 'On-trip support'],
               ].map(([value, label]) => (
                 <div key={label} className="px-5 py-5 text-center sm:px-6">
                   <p className="font-display text-[28px] leading-none text-cream-50">{value}</p>

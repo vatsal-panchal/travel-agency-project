@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
-import { ChevronLeft, ChevronRight, Compass, SearchX } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router';
+import { ChevronLeft, ChevronRight, SearchX } from 'lucide-react';
 import { packageApi } from '../api/packageApi';
 import { PackageCard } from '../components/packages/PackageCard';
 import { FilterBar } from '../components/packages/FilterBar';
 import { Reveal } from '../components/ui/Reveal';
+
+const BUDGET_LIMITS = {
+  under50: { maxPrice: 49999 },
+  from50to100: { minPrice: 50000, maxPrice: 100000 },
+  over100: { minPrice: 100001 },
+};
+const NO_BUDGET_LIMITS = {};
 
 export const PackagesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,7 +19,9 @@ export const PackagesPage = () => {
   const category = searchParams.get('category') || '';
   const search = searchParams.get('search') || '';
   const sort = searchParams.get('sort') || 'newest';
+  const budget = searchParams.get('budget') || '';
   const page = Number(searchParams.get('page')) || 1;
+  const selectedBudget = BUDGET_LIMITS[budget] || NO_BUDGET_LIMITS;
 
   const [searchInput, setSearchInput] = useState(search);
   const [packages, setPackages] = useState([]);
@@ -44,7 +53,14 @@ export const PackagesPage = () => {
       try {
         setLoading(true);
         setError('');
-        const res = await packageApi.getAll({ category, search, sort, page, limit: 9 });
+        const res = await packageApi.getAll({
+          category,
+          search,
+          sort,
+          page,
+          limit: 9,
+          ...selectedBudget,
+        });
         if (!alive) return;
         setPackages(res.data?.packages || []);
         setPagination({
@@ -62,7 +78,7 @@ export const PackagesPage = () => {
     return () => {
       alive = false;
     };
-  }, [category, search, sort, page]);
+  }, [category, search, sort, page, selectedBudget]);
 
   const updateFilter = (key, value) => {
     const params = new URLSearchParams(searchParams);
@@ -87,32 +103,57 @@ export const PackagesPage = () => {
   return (
     <div>
       {/* Header */}
-      <section className="border-b border-ink/10 bg-cream-200/50">
-        <div className="container-x py-12 sm:py-16">
+      <section className="relative overflow-hidden border-b border-ink/10 bg-cream-100">
+        <div className="pointer-events-none absolute inset-0 opacity-50" aria-hidden="true">
+          <svg viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice" className="h-full w-full">
+            <path
+              d="M-50 260C150 240 180 72 370 95s228 190 400 126 222-177 480-145"
+              fill="none"
+              stroke="#176b70"
+              strokeOpacity=".12"
+              strokeWidth="2"
+              strokeDasharray="5 9"
+            />
+            <path
+              d="M-40 285C180 268 215 122 360 132s223 159 400 108 229-134 490-116"
+              fill="none"
+              stroke="#de6d50"
+              strokeOpacity=".11"
+              strokeWidth="1.5"
+            />
+            <circle cx="370" cy="95" r="5" fill="#176b70" fillOpacity=".35" />
+            <circle cx="770" cy="221" r="5" fill="#de6d50" fillOpacity=".4" />
+            <circle cx="1130" cy="76" r="5" fill="#176b70" fillOpacity=".35" />
+          </svg>
+        </div>
+        <div className="container-x relative py-12 sm:py-16">
           <Reveal>
             <span className="eyebrow">The collection · 2026</span>
-            <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 className="display-hero max-w-2xl text-[2.8rem] text-ink sm:text-[3.8rem]">
+            <div className="mt-4 flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-3xl">
+                <h1 className="display-hero text-[2.8rem] text-ink sm:text-[3.8rem]">
                   Find your next{' '}
-                  <em className="font-light italic text-clay-500">great escape.</em>
+                  <em className="font-light italic text-clay-600">great escape.</em>
                 </h1>
-                <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-ink-500">
-                  Small groups, real local guides and itineraries with room to wander.
-                  Filter by the kind of journey you need.
+                <p className="mt-4 max-w-xl text-[14px] leading-relaxed text-ink-600">
+                  Small groups, trusted local guides and room to wander. Find the journey that
+                  feels like yours.
                 </p>
               </div>
-              <div className="flex items-center gap-4 border-l border-ink/15 pl-5 text-[10px] font-extrabold uppercase tracking-[0.16em] text-ink-400">
-                <div>
-                  <p className="font-display text-2xl normal-case tracking-normal text-ink">
-                    {pagination.total || '—'}
+              <div className="flex items-center gap-4 lg:mb-1">
+                <div className="rounded-2xl border border-ink/10 bg-cream-50/90 px-5 py-3 shadow-soft">
+                  <p className="font-display text-2xl leading-none text-ink">
+                    {loading ? '…' : pagination.total}
                   </p>
-                  journeys
+                  <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.16em] text-ink-400">
+                    Available journeys
+                  </p>
                 </div>
-                <div className="h-8 w-px bg-ink/10" />
-                <div>
-                  <p className="font-display text-2xl normal-case tracking-normal text-ink">15</p>
-                  countries
+                <div className="rounded-2xl border border-ink/10 bg-cream-50/90 px-5 py-3 shadow-soft">
+                  <p className="font-display text-2xl leading-none text-ink">5 styles</p>
+                  <p className="mt-1 text-[9px] font-extrabold uppercase tracking-[0.16em] text-ink-400">
+                    Ways to travel
+                  </p>
                 </div>
               </div>
             </div>
@@ -124,6 +165,8 @@ export const PackagesPage = () => {
         <FilterBar
           category={category}
           onCategoryChange={(value) => updateFilter('category', value)}
+          budget={budget}
+          onBudgetChange={(value) => updateFilter('budget', value)}
           search={searchInput}
           onSearchChange={setSearchInput}
           sort={sort}
@@ -153,9 +196,23 @@ export const PackagesPage = () => {
             <span className="chip capitalize">
               {category.replace('-', ' ')}
               <button
+                type="button"
                 onClick={() => updateFilter('category', '')}
                 className="ml-0.5 text-ink-400 hover:text-ink"
                 aria-label="Remove category filter"
+              >
+                ×
+              </button>
+            </span>
+          )}
+          {budget && (
+            <span className="chip">
+              {budget === 'under50' ? 'Under ₹50,000' : budget === 'from50to100' ? '₹50,000–₹1,00,000' : 'Over ₹1,00,000'}
+              <button
+                type="button"
+                onClick={() => updateFilter('budget', '')}
+                className="ml-0.5 text-ink-400 hover:text-ink"
+                aria-label="Remove budget filter"
               >
                 ×
               </button>
@@ -191,16 +248,16 @@ export const PackagesPage = () => {
             </span>
             <h2 className="mt-5 font-display text-3xl text-ink">Nothing matches just yet.</h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-500">
-              Try a different place, remove a filter, or let our concierge suggest a journey
+              Try a different place, remove a filter, or ask our travel team to plan a journey
               that fits what you have in mind.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button onClick={handleReset} className="btn-ink btn-sm">
                 Clear all filters
               </button>
-              <a href="/#enquiry" className="btn-outline btn-sm">
+              <Link to="/#enquiry" className="btn-outline btn-sm">
                 Ask for a custom trip
-              </a>
+              </Link>
             </div>
           </div>
         ) : (

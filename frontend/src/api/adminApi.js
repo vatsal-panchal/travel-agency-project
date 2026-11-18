@@ -25,10 +25,5 @@ export const adminApi = {
     const res = await api.get('/admin/payments', { params });
     return res.data;
   },
-
-  seedDummyData: async () => {
-    const res = await api.post('/admin/seed-dummy-data');
-    return res.data;
-  },
 };
 

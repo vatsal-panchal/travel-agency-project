@@ -236,6 +236,56 @@ export const getMe = catchAsync(async (req, res, next) => {
   });
 });
 
+export const updateProfile = catchAsync(async (req, res, next) => {
+  const { name, email, currentPassword } = req.body;
+  const emailChanged = email !== req.user.email;
+
+  if (emailChanged && !currentPassword) {
+    throw new ApiError(
+      400,
+      'Current password is required to change your email',
+      null,
+      'CURRENT_PASSWORD_REQUIRED'
+    );
+  }
+
+  const user = emailChanged
+    ? await User.findById(req.user._id).select('+password')
+    : req.user;
+
+  if (!user) {
+    throw new ApiError(401, 'User account no longer exists', null, 'INVALID_TOKEN');
+  }
+
+  if (emailChanged && !(await user.comparePassword(currentPassword))) {
+    throw new ApiError(400, 'Current password does not match', null, 'INVALID_PASSWORD');
+  }
+
+  const existingUser = await User.findOne({ email, _id: { $ne: req.user._id } });
+
+  if (existingUser) {
+    throw new ApiError(409, 'Email address already registered', null, 'DUPLICATE_EMAIL');
+  }
+
+  user.name = name;
+  user.email = email;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Profile updated successfully',
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    },
+  });
+});
+
 export const changePassword = catchAsync(async (req, res, next) => {
   const { currentPassword, newPassword } = req.body;
 

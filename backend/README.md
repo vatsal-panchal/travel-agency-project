@@ -65,8 +65,6 @@ npm run seed
 | `ADMIN_NAME` | `Super Admin` | Initial admin account name for seed |
 | `ADMIN_EMAIL` | `admin@travel.com` | Initial admin email |
 | `ADMIN_PASSWORD` | `Admin@12345` | Initial admin password (min 8 chars, 1 letter, 1 number) |
-| `GROQ_API_KEY` | String | Groq API key from https://console.groq.com/keys |
-| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Current Groq production model |
 
 ---
 
@@ -131,6 +129,7 @@ npm run seed
 - `POST /logout`: Clears cookie & revokes token
 - `POST /logout-all`: Revokes all active refresh tokens for the user
 - `GET /me`: Returns profile of authenticated user
+- `PATCH /profile`: Updates the authenticated user's name and email
 - `PATCH /change-password`: Changes password, revokes all sessions
 
 ### Packages (`/api/packages`)
@@ -170,6 +169,3 @@ npm run seed
 - `GET /enquiries/my`: User's enquiries
 - `GET /enquiries/admin`: Admin enquiry review
 - `PATCH /enquiries/admin/:id`: Admin reply to enquiry
-
-### AI Support Chatbot (`/api/chat`)
-- `POST /`: Powered by Groq `llama-3.3-70b-versatile`, grounded with live package catalog from MongoDB.

@@ -13,7 +13,6 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   Trash2,
   TrendingUp,
   Users,
@@ -34,6 +33,17 @@ const formatDate = (value) => {
     month: 'short',
     year: 'numeric',
   });
+};
+
+const parseImageUrls = (value) =>
+  value.split(/[\n,]/).map((imageUrl) => imageUrl.trim()).filter(Boolean);
+
+const isHttpUrl = (value) => {
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
 };
 
 const statusStyles = {
@@ -103,6 +113,11 @@ export const AdminDashboardPage = () => {
   const [userPagination, setUserPagination] = useState({ page: 1, total: 0, totalPages: 1 });
   const [userActionId, setUserActionId] = useState(null);
   const [adminBookings, setAdminBookings] = useState([]);
+  const [adminPayments, setAdminPayments] = useState([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('all');
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [paymentPagination, setPaymentPagination] = useState({ page: 1, total: 0, totalPages: 1 });
   const [packagesList, setPackagesList] = useState([]);
   const [enquiriesList, setEnquiriesList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +150,27 @@ export const AdminDashboardPage = () => {
       setUsersLoading(false);
     }
   }, [userPage, userSearch, userStatusFilter]);
+
+  const loadPayments = useCallback(async () => {
+    try {
+      setPaymentsLoading(true);
+      const response = await adminApi.getPayments({
+        page: paymentPage,
+        limit: 10,
+        ...(paymentStatus !== 'all' ? { status: paymentStatus } : {}),
+      });
+      setAdminPayments(response.data?.payments || []);
+      setPaymentPagination({
+        page: response.data?.page || 1,
+        total: response.data?.total || 0,
+        totalPages: response.data?.totalPages || 1,
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Payment activity could not be loaded.');
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }, [paymentPage, paymentStatus]);
 
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
@@ -176,6 +212,12 @@ export const AdminDashboardPage = () => {
       loadUsers();
     }
   }, [isAdmin, loadUsers]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadPayments();
+    }
+  }, [isAdmin, loadPayments]);
 
   const handleToggleBlock = async (userId) => {
     try {
@@ -220,6 +262,12 @@ export const AdminDashboardPage = () => {
   const handleSavePackage = async (event) => {
     event.preventDefault();
     setPackageError('');
+    const imageUrls = parseImageUrls(packageForm.images);
+
+    if (imageUrls.some((imageUrl) => !isHttpUrl(imageUrl))) {
+      setPackageError('Each image must use a valid http or https URL.');
+      return;
+    }
 
     try {
       setPackageSaving(true);
@@ -244,7 +292,7 @@ export const AdminDashboardPage = () => {
         startDate: new Date(packageForm.startDate),
         category: packageForm.category,
         pickupLocation: packageForm.pickupLocation,
-        images: packageForm.images.split(',').map((value) => value.trim()).filter(Boolean),
+        images: imageUrls,
         inclusions: packageForm.inclusions.split(',').map((value) => value.trim()).filter(Boolean),
         exclusions: packageForm.exclusions.split(',').map((value) => value.trim()).filter(Boolean),
         itinerary: parsedItinerary,
@@ -287,7 +335,7 @@ export const AdminDashboardPage = () => {
       startDate: new Date(pkg.startDate).toISOString().split('T')[0],
       category: pkg.category || 'beach',
       pickupLocation: pkg.pickupLocation || '',
-      images: (pkg.images || []).join(', '),
+      images: (pkg.images || []).join('\n'),
       inclusions: (pkg.inclusions || []).join(', '),
       exclusions: (pkg.exclusions || []).join(', '),
       itineraryText:
@@ -310,10 +358,11 @@ export const AdminDashboardPage = () => {
       { id: 'overview', label: 'Overview', icon: TrendingUp },
       { id: 'packages', label: 'Journeys', icon: Package, count: packagesList.length },
       { id: 'bookings', label: 'Bookings', icon: CalendarCheck, count: adminBookings.length },
+      { id: 'payments', label: 'Payments', icon: CreditCard, count: paymentPagination.total },
       { id: 'users', label: 'Users', icon: Users, count: userPagination.total },
       { id: 'enquiries', label: 'Enquiries', icon: MessageSquare, count: enquiriesList.length },
     ],
-    [packagesList.length, adminBookings.length, userPagination.total, enquiriesList.length]
+    [packagesList.length, adminBookings.length, paymentPagination.total, userPagination.total, enquiriesList.length]
   );
 
   if (!isAuthenticated || !isAdmin) {
@@ -343,22 +392,6 @@ export const AdminDashboardPage = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    setLoading(true);
-                    await adminApi.seedDummyData();
-                    await loadAllAdminData();
-                  } catch (err) {
-                    setError(err.response?.data?.message || 'Could not populate the sample data.');
-                    setLoading(false);
-                  }
-                }}
-                className="btn-outline btn-sm"
-              >
-                <Sparkles className="h-3.5 w-3.5" /> Load sample journeys
-              </button>
               <button type="button" onClick={openCreateModal} className="btn-ink btn-sm">
                 <Plus className="h-3.5 w-3.5" /> New journey
               </button>
@@ -821,6 +854,118 @@ export const AdminDashboardPage = () => {
               </div>
             )}
 
+            {/* Payments */}
+            {activeTab === 'payments' && (
+              <div className="mt-6 overflow-hidden rounded-3xl border border-ink/10 bg-cream-50 shadow-soft">
+                <div className="flex flex-col gap-3 border-b border-ink/[0.07] p-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+                  <div>
+                    <p className="eyebrow">Transaction history</p>
+                    <h2 className="mt-1 font-display text-2xl text-ink">Payment activity</h2>
+                    <p className="mt-1 text-[11px] text-ink-400">
+                      Sandbox records only · no payment provider is connected.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-[10px] font-bold text-ink-500">
+                    Status
+                    <select
+                      value={paymentStatus}
+                      onChange={(event) => {
+                        setPaymentPage(1);
+                        setPaymentStatus(event.target.value);
+                      }}
+                      className="rounded-xl border border-ink/10 bg-cream-50 px-3 py-2 text-[11px] font-bold text-ink focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/10"
+                    >
+                      <option value="all">All statuses</option>
+                      <option value="pending">Pending</option>
+                      <option value="success">Successful</option>
+                      <option value="failed">Failed</option>
+                      <option value="refunded">Refunded</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[790px] border-collapse">
+                    <thead className="border-b border-ink/10 bg-cream-100">
+                      <tr>
+                        <Th>Traveller</Th>
+                        <Th>Transaction</Th>
+                        <Th>Card</Th>
+                        <Th>Amount</Th>
+                        <Th>Status</Th>
+                        <Th>Date</Th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink/[0.07]">
+                      {paymentsLoading ? (
+                        <tr>
+                          <td colSpan="6" className="px-5 py-12 text-center text-[12px] text-ink-400">
+                            Loading payment activity…
+                          </td>
+                        </tr>
+                      ) : adminPayments.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="px-5 py-12 text-center text-[12px] text-ink-400">
+                            No payments match this status.
+                          </td>
+                        </tr>
+                      ) : (
+                        adminPayments.map((payment) => (
+                          <tr key={payment._id} className="transition hover:bg-cream-100/60">
+                            <Td>
+                              <p className="font-extrabold text-ink">{payment.user?.name || 'Traveller'}</p>
+                              <p className="text-[10px] text-ink-400">{payment.user?.email || '—'}</p>
+                            </Td>
+                            <Td className="font-mono text-[10px]">{payment.transactionId || 'Pending'}</Td>
+                            <Td>
+                              {payment.cardBrand
+                                ? `${payment.cardBrand} ···· ${payment.cardLast4 || '----'}`
+                                : '—'}
+                            </Td>
+                            <Td className="font-extrabold text-ink">{formatCurrency(payment.amount)}</Td>
+                            <Td><StatusBadge status={payment.status} /></Td>
+                            <Td className="text-[11px] text-ink-400">{formatDate(payment.createdAt)}</Td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex flex-col gap-3 border-t border-ink/[0.07] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                  <p className="text-[10px] font-semibold text-ink-400">
+                    {paymentPagination.total === 0
+                      ? 'Showing 0 transactions'
+                      : `Showing ${(paymentPagination.page - 1) * 10 + 1}–${Math.min(
+                          paymentPagination.page * 10,
+                          paymentPagination.total
+                        )} of ${paymentPagination.total} transactions`}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={paymentPagination.page <= 1 || paymentsLoading}
+                      onClick={() => setPaymentPage((page) => Math.max(1, page - 1))}
+                      className="rounded-full border border-ink/10 px-3 py-2 text-[10px] font-extrabold text-ink-600 transition hover:bg-cream-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span className="min-w-16 text-center text-[10px] font-bold text-ink-500">
+                      Page {paymentPagination.page} of {paymentPagination.totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={paymentPagination.page >= paymentPagination.totalPages || paymentsLoading}
+                      onClick={() =>
+                        setPaymentPage((page) => Math.min(paymentPagination.totalPages, page + 1))
+                      }
+                      className="rounded-full border border-ink/10 px-3 py-2 text-[10px] font-extrabold text-ink-600 transition hover:bg-cream-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Users */}
             {activeTab === 'users' && (
               <div className="mt-6 overflow-hidden rounded-3xl border border-ink/10 bg-cream-50 shadow-soft">
@@ -1211,15 +1356,32 @@ export const AdminDashboardPage = () => {
 
           <div>
             <label htmlFor="package-images" className="field-label">
-              Image URLs <span className="normal-case tracking-normal text-ink-300">(comma separated)</span>
+              Image URLs <span className="normal-case tracking-normal text-ink-300">(one per line or comma-separated)</span>
             </label>
-            <input
+            <textarea
               id="package-images"
-              type="text"
+              rows={3}
               value={packageForm.images}
               onChange={updateForm('images')}
-              className="field-input"
+              placeholder="https://example.com/cover.jpg"
+              className="field-input resize-y font-mono text-[11px]"
             />
+            <p className="mt-1.5 text-[10px] text-ink-400">
+              Paste direct image links. The first image is used as the journey cover.
+            </p>
+            {parseImageUrls(packageForm.images).length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2" aria-label="Image previews">
+                {parseImageUrls(packageForm.images).slice(0, 5).map((imageUrl, index) => (
+                  <img
+                    key={`${imageUrl}-${index}`}
+                    src={imageUrl}
+                    alt={`Journey image preview ${index + 1}`}
+                    loading="lazy"
+                    className="h-16 w-20 rounded-xl border border-ink/10 object-cover"
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

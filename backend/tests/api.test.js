@@ -267,6 +267,42 @@ describe('2. Authentication & Authorization Flow', () => {
     expect(newLogin.status).toBe(200);
   });
 
+  test('PATCH /api/auth/profile updates the signed-in user and rejects duplicate email', async () => {
+    const regRes = await request(app).post('/api/auth/register').send(userPayload);
+    const token = regRes.body.data.accessToken;
+
+    const missingPasswordRes = await request(app)
+      .patch('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'John Traveler', email: 'john.traveler@example.com' });
+    expect(missingPasswordRes.status).toBe(400);
+    expect(missingPasswordRes.body.code).toBe('CURRENT_PASSWORD_REQUIRED');
+
+    const updateRes = await request(app)
+      .patch('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'John Traveler',
+        email: 'john.traveler@example.com',
+        currentPassword: userPayload.password,
+      });
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.data.user.name).toBe('John Traveler');
+    expect(updateRes.body.data.user.email).toBe('john.traveler@example.com');
+
+    await User.create({ name: 'Another User', email: 'taken@example.com', password: 'Password123' });
+    const duplicateRes = await request(app)
+      .patch('/api/auth/profile')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'John Traveler',
+        email: 'taken@example.com',
+        currentPassword: userPayload.password,
+      });
+    expect(duplicateRes.status).toBe(409);
+    expect(duplicateRes.body.code).toBe('DUPLICATE_EMAIL');
+  });
+
   test('Role restriction: User gets 403 on admin routes, Admin passes', async () => {
     const userRes = await request(app).post('/api/auth/register').send(userPayload);
     const userToken = userRes.body.data.accessToken;
@@ -799,15 +835,5 @@ describe('6. Reviews, Wishlist, and Enquiries', () => {
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.enquiry.status).toBe('new');
-  });
-});
-
-describe('7. AI Chatbot Error Handling', () => {
-  test('POST /api/chat returns 503 if GROQ_API_KEY is not set', async () => {
-    const res = await request(app).post('/api/chat').send({
-      message: 'Tell me about Bali packages',
-    });
-    expect(res.status).toBe(503);
-    expect(res.body.code).toBe('SERVICE_UNAVAILABLE');
   });
 });

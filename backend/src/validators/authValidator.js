@@ -22,3 +22,9 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: passwordSchema,
 });
+
+export const updateProfileSchema = z.object({
+  name: registerSchema.shape.name,
+  email: registerSchema.shape.email,
+  currentPassword: z.string().optional(),
+});

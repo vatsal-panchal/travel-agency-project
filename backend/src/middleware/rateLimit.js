@@ -36,10 +36,3 @@ export const enquiryLimiter = createRateLimiter(
   5,
   'Enquiry limit reached (max 5 per hour), please try again later'
 );
-
-// Chatbot limiter: 10 requests per minute per IP
-export const chatLimiter = createRateLimiter(
-  60 * 1000,
-  10,
-  'Too many chat requests, please slow down'
-);
