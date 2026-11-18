@@ -28,28 +28,21 @@ if (env.NODE_ENV === 'production') {
 
 // Security headers & hygiene
 app.disable('x-powered-by');
-app.use(helmet());
-
-// Logging
-if (env.NODE_ENV === 'production') {
-  app.use(morgan('combined'));
-} else if (env.NODE_ENV !== 'test') {
-  app.use(morgan('dev'));
-}
 
 // CORS setup
 const allowedOrigins = env.CLIENT_URL.split(',')
-  .map((origin) => origin.trim().replace(/\/+$/, ''))
+  .map((origin) => origin.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '').toLowerCase())
   .filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow non-browser agents (cURL, mobile apps, server-to-server) with no Origin header
     if (!origin) return callback(null, true);
-    const normalizedOrigin = origin.replace(/\/+$/, '');
+    const normalizedOrigin = origin.trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '').toLowerCase();
     if (allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
+    console.warn(`[CORS] Rejected origin: "${origin}". Allowed origins: ${JSON.stringify(allowedOrigins)}`);
     return callback(new ApiError(403, 'CORS policy: Not allowed by CORS', null, 'CORS_ERROR'));
   },
   credentials: true,
@@ -60,6 +53,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.use(helmet());
+
+// Logging
+if (env.NODE_ENV === 'production') {
+  app.use(morgan('combined'));
+} else if (env.NODE_ENV !== 'test') {
+  app.use(morgan('dev'));
+}
 
 // Body parsing with strict 10kb payload limit
 app.use(express.json({ limit: '10kb' }));

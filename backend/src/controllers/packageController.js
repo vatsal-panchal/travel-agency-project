@@ -19,7 +19,9 @@ const createSlug = (title) => {
 };
 
 export const getAllPackages = catchAsync(async (req, res, next) => {
-  const { page, limit, search, destination, category, minPrice, maxPrice, sort } = req.query;
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.max(1, parseInt(req.query.limit, 10) || 5);
+  const { search, destination, category, minPrice, maxPrice, sort } = req.query;
 
   const query = { isActive: true };
 
