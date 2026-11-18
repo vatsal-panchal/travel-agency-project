@@ -35,7 +35,7 @@ export const NotFoundPage = () => {
 
           <div className="mt-10 inline-flex items-center gap-2 rounded-full border border-ink/10 bg-cream-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-ink-400">
             <MapPin className="h-3.5 w-3.5 text-clay-500" />
-            Lost? The concierge can help.
+            Need a hand? Our travel team can help.
           </div>
         </div>
       </div>

@@ -18,8 +18,6 @@ import { Logo } from './Logo';
 const navLinks = [
   { label: 'Explore', path: '/packages' },
   { label: 'Destinations', path: '/destinations' },
-  { label: 'Deals', path: '/deals' },
-  { label: 'Reviews', path: '/reviews' },
   { label: 'About', path: '/about' },
   { label: 'Contact', path: '/contact' },
 ];
@@ -161,7 +159,7 @@ export const Navbar = () => {
                             onClick={() => setDropdownOpen(false)}
                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-bold text-ink-700 transition hover:bg-cream-100"
                           >
-                            <ShieldCheck className="h-4 w-4 text-clay-600" /> Admin console
+                            <ShieldCheck className="h-4 w-4 text-clay-600" /> Admin dashboard
                           </Link>
                         )}
                         <Link

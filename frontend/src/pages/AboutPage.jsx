@@ -220,8 +220,8 @@ export const AboutPage = () => {
               <Link to="/contact" className="btn-clay">
                 Start a conversation <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link to="/reviews" className="btn-outline">
-                Read traveller notes
+              <Link to="/packages" className="btn-outline">
+                Explore journeys
               </Link>
             </div>
           </Reveal>
@@ -241,7 +241,7 @@ export const AboutPage = () => {
                   Human help, always
                 </p>
                 <h2 className="mt-1 font-display text-2xl text-cream-50">
-                  A real specialist, not a chatbot queue.
+                  A real specialist, whenever you need one.
                 </h2>
               </div>
             </div>

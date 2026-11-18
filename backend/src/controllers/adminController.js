@@ -8,8 +8,10 @@ import { ApiError } from '../utils/ApiError.js';
 import { catchAsync } from '../utils/catchAsync.js';
 
 export const getAdminStats = catchAsync(async (req, res, next) => {
-  const [totalUsers, totalPackages, totalBookings] = await Promise.all([
+  const [totalUsers, activeUsers, suspendedUsers, totalPackages, totalBookings] = await Promise.all([
     User.countDocuments(),
+    User.countDocuments({ isBlocked: false }),
+    User.countDocuments({ isBlocked: true }),
     Package.countDocuments(),
     Booking.countDocuments(),
   ]);
@@ -107,6 +109,8 @@ export const getAdminStats = catchAsync(async (req, res, next) => {
     message: 'Admin dashboard statistics retrieved successfully',
     data: {
       totalUsers,
+      activeUsers,
+      suspendedUsers,
       totalPackages,
       totalBookings,
       bookingsByStatus,
@@ -119,13 +123,15 @@ export const getAdminStats = catchAsync(async (req, res, next) => {
 });
 
 export const getUsers = catchAsync(async (req, res, next) => {
-  const { page = 1, limit = 10, search } = req.query;
+  const { page = 1, limit = 10, search, status } = req.query;
   const query = {};
 
   if (search) {
     const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
     query.$or = [{ name: regex }, { email: regex }];
   }
+  if (status === 'active') query.isBlocked = false;
+  if (status === 'suspended') query.isBlocked = true;
 
   const total = await User.countDocuments(query);
   const totalPages = Math.ceil(total / limit) || 1;

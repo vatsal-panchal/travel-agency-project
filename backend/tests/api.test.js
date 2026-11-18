@@ -297,6 +297,52 @@ describe('2. Authentication & Authorization Flow', () => {
     expect(adminRes.status).toBe(200);
     expect(adminRes.body.success).toBe(true);
   });
+
+  test('Admin dashboard reports account access totals and filters users by status', async () => {
+    const admin = await User.create({
+      name: 'Admin',
+      email: 'admin_dashboard@test.com',
+      password: 'Password123',
+      role: 'admin',
+    });
+    await User.create([
+      { name: 'Active User', email: 'active_dashboard@test.com', password: 'Password123' },
+      {
+        name: 'Suspended User',
+        email: 'suspended_dashboard@test.com',
+        password: 'Password123',
+        isBlocked: true,
+      },
+    ]);
+    const adminToken = jwt.sign(
+      { sub: admin._id.toString(), role: 'admin' },
+      env.JWT_ACCESS_SECRET,
+      { expiresIn: '15m', algorithm: 'HS256' }
+    );
+
+    const [statsRes, suspendedUsersRes, activeUsersRes] = await Promise.all([
+      request(app)
+        .get('/api/admin/stats')
+        .set('Authorization', `Bearer ${adminToken}`),
+      request(app)
+        .get('/api/admin/users?status=suspended')
+        .set('Authorization', `Bearer ${adminToken}`),
+      request(app)
+        .get('/api/admin/users?status=active')
+        .set('Authorization', `Bearer ${adminToken}`),
+    ]);
+
+    expect(statsRes.status).toBe(200);
+    expect(statsRes.body.data).toMatchObject({
+      totalUsers: 3,
+      activeUsers: 2,
+      suspendedUsers: 1,
+    });
+    expect(suspendedUsersRes.body.data.users.map((user) => user.email)).toEqual([
+      'suspended_dashboard@test.com',
+    ]);
+    expect(activeUsersRes.body.data.total).toBe(2);
+  });
 });
 
 describe('3. Travel Packages and Pagination', () => {

@@ -562,7 +562,7 @@ export const HomePage = () => {
                     {
                       icon: Sparkles,
                       title: 'A real human on call',
-                      copy: 'Our 24/7 concierge is grounded in live availability and pricing, with local specialists one message away when it matters.',
+                      copy: 'Our travel specialists can help with live availability and pricing, with personal support when it matters.',
                     },
                   ].map((item) => (
                     <div key={item.title} className="flex gap-4">
@@ -611,11 +611,6 @@ export const HomePage = () => {
                 eyebrow="Notes from the road"
                 title="What travellers wrote when they got home."
                 description="Unfiltered words from people who booked, travelled and came back. Every review is tied to a completed journey."
-                action={
-                  <Link to="/reviews" className="link-arrow">
-                    Read all reviews <ArrowRight className="h-4 w-4" />
-                  </Link>
-                }
               />
             </Reveal>
 

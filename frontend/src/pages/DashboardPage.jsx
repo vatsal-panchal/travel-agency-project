@@ -232,7 +232,7 @@ export const DashboardPage = () => {
                   to="/admin"
                   className="inline-flex items-center gap-1.5 rounded-full border border-cream-100/20 px-4 py-2 text-[11px] font-extrabold text-cream-100 transition hover:bg-cream-100/10"
                 >
-                  Admin console <ExternalLink className="h-3.5 w-3.5" />
+                  Admin dashboard <ExternalLink className="h-3.5 w-3.5" />
                 </Link>
               )}
             </div>

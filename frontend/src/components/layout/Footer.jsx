@@ -45,8 +45,6 @@ const columns = [
     links: [
       { label: 'All journeys', to: '/packages' },
       { label: 'Destinations', to: '/destinations' },
-      { label: 'Seasonal deals', to: '/deals' },
-      { label: 'Traveler reviews', to: '/reviews' },
       { label: 'Saved journeys', to: '/wishlist' },
     ],
   },
@@ -67,7 +65,7 @@ const columns = [
       { label: 'Contact concierge', to: '/contact' },
       { label: 'Custom itinerary', to: '/contact' },
       { label: 'My account', to: '/dashboard' },
-      { label: 'Admin console', to: '/admin' },
+      { label: 'Admin dashboard', to: '/admin' },
     ],
   },
 ];

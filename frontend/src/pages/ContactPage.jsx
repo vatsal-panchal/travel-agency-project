@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ArrowRight,
   CheckCircle2,
   Clock3,
   Headphones,
@@ -158,26 +157,18 @@ export const ContactPage = () => {
 
               <div className="overflow-hidden rounded-[1.75rem] border border-ink/10 bg-forest-deep p-6 text-cream-100">
                 <span className="grid h-10 w-10 place-items-center rounded-2xl bg-cream-100/10 text-clay-300">
-                  <Sparkles className="h-5 w-5" />
+                  <Phone className="h-5 w-5" />
                 </span>
                 <h2 className="mt-4 font-display text-2xl leading-tight text-cream-50">
-                  Need an answer right now?
+                  Speak with a travel specialist
                 </h2>
                 <p className="mt-2 text-[12.5px] leading-relaxed text-cream-200/65">
-                  Our AI concierge is awake around the clock for quick questions on itineraries,
-                  dates, payments and packing. For anything personal, a human will follow up.
+                  Call our concierge line during studio hours for help with journeys, dates and
+                  bookings. You can also send an enquiry and our team will get back to you.
                 </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    document
-                      .querySelector('[aria-label="Toggle AI Concierge Chat"]')
-                      ?.click()
-                  }
-                  className="btn-light btn-sm mt-5"
-                >
-                  Ask the concierge <ArrowRight className="h-3.5 w-3.5" />
-                </button>
+                <a href="tel:+911149823000" className="btn-light btn-sm mt-5">
+                  Call the concierge <Phone className="h-3.5 w-3.5" />
+                </a>
               </div>
             </div>
           </Reveal>
