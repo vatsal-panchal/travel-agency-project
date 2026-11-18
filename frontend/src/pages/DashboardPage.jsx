@@ -161,6 +161,7 @@ export const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
   const [cancellingId, setCancellingId] = useState(null);
   const [confirmCancelId, setConfirmCancelId] = useState(null);
 
@@ -221,8 +222,15 @@ export const DashboardPage = () => {
     try {
       setCancellingId(bookingId);
       setActionError('');
+      setActionSuccess('');
       await bookingApi.cancel(bookingId);
       setConfirmCancelId(null);
+      setBookings((current) =>
+        current.map((booking) =>
+          booking._id === bookingId ? { ...booking, status: 'cancelled' } : booking
+        )
+      );
+      setActionSuccess('Trip cancelled. You can find it in your cancelled bookings.');
       await fetchDashboardData();
     } catch (err) {
       setActionError(err.response?.data?.message || 'We could not cancel this booking.');
@@ -319,8 +327,13 @@ export const DashboardPage = () => {
     return { upcoming, spend };
   }, [bookings, payments]);
 
+  const activeBookings = bookings.filter((booking) => booking.status !== 'cancelled');
+  const cancelledBookings = bookings.filter((booking) => booking.status === 'cancelled');
+  const displayedBookings = activeTab === 'cancelled' ? cancelledBookings : activeBookings;
+
   const tabs = [
-    { id: 'bookings', label: 'Bookings', icon: CalendarCheck, count: bookings.length },
+    { id: 'bookings', label: 'Bookings', icon: CalendarCheck, count: activeBookings.length },
+    { id: 'cancelled', label: 'Cancelled', icon: XCircle, count: cancelledBookings.length },
     { id: 'payments', label: 'Receipts', icon: ReceiptText, count: payments.length },
     { id: 'wishlist', label: 'Saved', icon: Heart, count: wishlistItems.length },
     { id: 'settings', label: 'Profile', icon: UserRound },
@@ -387,7 +400,7 @@ export const DashboardPage = () => {
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {[
               { label: 'Upcoming journeys', value: stats.upcoming, icon: CalendarDays },
-              { label: 'Total trips', value: bookings.length, icon: Ticket },
+              { label: 'Total trips', value: activeBookings.length, icon: Ticket },
               { label: 'Paid to date', value: formatCurrency(stats.spend), icon: CreditCard },
             ].map((item) => {
               const Icon = item.icon;
@@ -467,8 +480,25 @@ export const DashboardPage = () => {
           </div>
         )}
 
+        {actionSuccess && (
+          <div
+            role="status"
+            className="mt-5 flex items-center gap-2.5 rounded-2xl border border-moss/20 bg-moss/10 px-4 py-3 text-[12px] font-semibold text-moss"
+          >
+            <CalendarCheck className="h-4 w-4 shrink-0" />
+            <span>{actionSuccess}</span>
+            <button
+              type="button"
+              onClick={() => setActionSuccess('')}
+              className="ml-auto text-[10px] font-extrabold uppercase tracking-wide underline underline-offset-2"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Bookings */}
-        {activeTab === 'bookings' && (
+        {(activeTab === 'bookings' || activeTab === 'cancelled') && (
           <div className="mt-6 space-y-3">
             {loading ? (
               [1, 2, 3].map((item) => (
@@ -483,19 +513,44 @@ export const DashboardPage = () => {
                   </div>
                 </div>
               ))
-            ) : bookings.length === 0 ? (
+            ) : displayedBookings.length === 0 ? (
               <EmptyState
-                icon={CalendarCheck}
-                title="No journeys booked yet."
-                copy="When you reserve a place, it will appear here with your dates, travellers and payment status."
+                icon={activeTab === 'cancelled' ? XCircle : CalendarCheck}
+                title={
+                  activeTab === 'cancelled'
+                    ? 'No cancelled bookings.'
+                    : 'No active journeys booked.'
+                }
+                copy={
+                  activeTab === 'cancelled'
+                    ? 'Trips you cancel will be kept here for your records.'
+                    : 'When you reserve a place, it will appear here with your dates, travellers and payment status.'
+                }
                 action={
-                  <Link to="/packages" className="btn-ink">
-                    Explore journeys <ArrowRight className="h-4 w-4" />
-                  </Link>
+                  activeTab === 'cancelled' ? (
+                    <Link to="/packages" className="btn-ink">
+                      Explore journeys <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  ) : (
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Link to="/packages" className="btn-ink">
+                        Explore journeys <ArrowRight className="h-4 w-4" />
+                      </Link>
+                      {cancelledBookings.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchParams({ tab: 'cancelled' })}
+                          className="btn-outline"
+                        >
+                          View cancelled
+                        </button>
+                      )}
+                    </div>
+                  )
                 }
               />
             ) : (
-              bookings.map((booking) => {
+              displayedBookings.map((booking) => {
                 const pkg = booking.package;
                 const isConfirming = confirmCancelId === booking._id;
                 return (
